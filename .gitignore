@@ -1,0 +1,7 @@
+**/Objects/ 
+**/AutoBackups/ 
+*.apk 
+*.dex
+*.meta
+*.exe
+*.msi
