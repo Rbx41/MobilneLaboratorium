@@ -1,0 +1,9 @@
+
+Objects/
+AutoBackups/
+
+
+*.b4a.meta
+Thumbs.db
+
+*.meta

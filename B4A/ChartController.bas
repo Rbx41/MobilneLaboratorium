@@ -4,10 +4,6 @@ ModulesStructureVersion=1
 Type=Class
 Version=13.4
 @EndOfDesignText@
-
-
-
-
 Sub Class_Globals
 	Private xui As XUI
     
@@ -15,7 +11,6 @@ Sub Class_Globals
 	Private mCounter As Int
 	Private mCzasZerowy As Double
     
-	
 	Private mTypWykresu As String
 	Private mVmin As Double
 	Private mVmax As Double
@@ -45,10 +40,9 @@ Public Sub ResetujWykres
 	PomiaryWartosci.Clear
 	PomiaryCzasu.Clear
     
-	' !!! DODAJEMY DWIE LINIE DO WYKRESU !!!
 	mChart.AddLine("Krzywa Teoretyczna", xui.Color_Yellow)
 	mChart.AddLine("Krzywa Rzeczywista", xui.Color_Red)
-	
+    
 	mChart.Title = mTypWykresu
 	mChart.SubTitle = "Czerwona: Pomiar | Żółta: Teoria"
     
@@ -58,8 +52,6 @@ Public Sub ResetujWykres
 	mChart.XAxisName = "Czas [s]"
 	mChart.YAxisName = "Napięcie [V]"
 End Sub
-
-
 
 ' 3. DODAWANIE DANYCH 
 Public Sub DodajPunkt(WartoscEksperyment As Double, CzasZMikrokontrolera As Double)
@@ -74,17 +66,11 @@ Public Sub DodajPunkt(WartoscEksperyment As Double, CzasZMikrokontrolera As Doub
     
 	mCounter = mCounter + 1
     
-	
 	PomiaryWartosci.Add(WartoscEksperyment)
 	PomiaryCzasu.Add(CzasWzgledny)
     
-	' ========================================================
-	' 2.  (Ochrona telefonu przed zacięciem)
-	' ========================================================
-  
 	If mCounter Mod 4 = 0 Or mCounter = 1 Then
         
-		' --- OBLICZANIE WYNIKU TEORETYCZNEGO (Tylko dla rysowanych punktów) ---
 		Dim Amplituda As Double = mVmax - mVmin
 		Dim WartoscTeoretyczna As Double
 		Dim PotegaE As Double = Power(cE, -CzasWzgledny / mTauTeoretyczne)
@@ -95,28 +81,21 @@ Public Sub DodajPunkt(WartoscEksperyment As Double, CzasZMikrokontrolera As Doub
 		Else If mTypWykresu = "ROZŁADOWANIE" Then
 			WartoscTeoretyczna = mVmax * PotegaE
 		End If
-		' ----------------------------------------------------------------------
         
-	
 		Dim pokazPodzialke As Boolean = (mCounter Mod 60 = 0 Or mCounter = 1)
 		Dim CzasSformatowany As String = NumberFormat(CzasWzgledny, 1, 1)
         
 		mChart.AddLineMultiplePoints(CzasSformatowany, Array As Double(WartoscTeoretyczna, WartoscEksperyment), pokazPodzialke)
 	End If
  
- 
 	If mCounter Mod 16 = 0 Then
 		mChart.DrawChart
 	End If
-    
 End Sub
-
-
 
 Public Sub DodajPunktMonitor(WartoscEksperyment As Double, CzasZMikrokontrolera As Double)
 	Dim CzasWzgledny As Double
     
-	' Efekt oscyloskopu: gdy dojdzie do 150 punktów, czyści brudnopis i rysuje od nowa
 	If mCounter > 150 Then
 		ResetujWykres
 	End If
@@ -133,11 +112,9 @@ Public Sub DodajPunktMonitor(WartoscEksperyment As Double, CzasZMikrokontrolera 
 	Dim pokazPodzialke As Boolean = (mCounter Mod 30 = 0 Or mCounter = 1)
 	Dim CzasSformatowany As String = NumberFormat(CzasWzgledny, 1, 1)
     
-
 	mChart.AddLineMultiplePoints(CzasSformatowany, Array As Double(WartoscEksperyment, WartoscEksperyment), pokazPodzialke)
-	
+    
 	If mCounter Mod 3 = 0 Then
 		mChart.DrawChart
 	End If
 End Sub
-

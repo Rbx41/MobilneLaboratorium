@@ -20,6 +20,11 @@ Sub Class_Globals
 	
 	' Zmienna dla naszego przycisku przenoszącego do układu RC
 	Private PobierzBtn As Button
+	
+	
+	Private ImgLadowanie As B4XView
+	Private ImgRozladowanie As B4XView
+	
 End Sub
 
 Public Sub Initialize As Object
@@ -131,6 +136,17 @@ End Sub
 
 
 
+
+Public Sub PokazWykresy(Zdjecie1 As B4XBitmap, Zdjecie2 As B4XBitmap)
+	' Sprawdzamy, czy layout został już załadowany
+	If ImgLadowanie.IsInitialized Then
+		ImgLadowanie.SetBitmap(Zdjecie1)
+	End If
+    
+	If ImgRozladowanie.IsInitialized Then
+		ImgRozladowanie.SetBitmap(Zdjecie2)
+	End If
+End Sub
 
 
 ' ==========================================
