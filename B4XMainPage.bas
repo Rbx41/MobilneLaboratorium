@@ -33,6 +33,7 @@ Sub Class_Globals
 	Public EkranKompasu As StronaKompas
 	Public EkranTabeli As StronaTabela
 	Public EkranTermometru As StronaTermometr ' <--- NOWA STRONA DLA TERMOMETRU
+	Public EkranTabeliTermometru As StronaTabelaTemperatura
     
 	' Przyciski z widoku MenuPage
 	Private btnIdzDoRC As Button
@@ -58,13 +59,16 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	EkranRC.Initialize
 	EkranKompasu.Initialize
 	EkranTabeli.Initialize
-	EkranTermometru.Initialize ' <--- Inicjalizacja
+	EkranTermometru.Initialize
+	EkranTabeliTermometru.Initialize
     
 	B4XPages.AddPage("StronaLogowania", EkranLogowania)
 	B4XPages.AddPage("StronaRC", EkranRC)
 	B4XPages.AddPage("StronaKompas", EkranKompasu)
 	B4XPages.AddPage("StronaTabela", EkranTabeli)
 	B4XPages.AddPage("StronaTermometr", EkranTermometru) ' <--- Dodanie do pamięci
+	B4XPages.AddPage("StronaTabelaTermometr", EkranTabeliTermometru)
+
 End Sub
 
 ' =========================================================
