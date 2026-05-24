@@ -12,6 +12,7 @@ Sub Class_Globals
     
 	Private btnIdzDoRC As Button
 	Private btnIdzDoKompasu As Button
+	Private btnIdzPomiaruTempWilg As Button
 End Sub
 
 Public Sub Initialize As Object

@@ -25,6 +25,9 @@ Sub Class_Globals
     
 	' GŁÓWNY OBIEKT SIECIOWY
 	Public mqtt As MqttClient
+	Public serialBT As Serial
+	Private astream As AsyncStreamsText
+	
 	Public const CLIENT_ID As String = "android_telefon_01"
     
 	' Deklaracja podstron
@@ -39,6 +42,7 @@ Sub Class_Globals
 	Private btnIdzDoRC As Button
 	Private btnIdzDoKompasu As Button
 	Private btnIdzDoTerm As Button ' <--- NOWY PRZYCISK
+	Private btnIdzPomiaruTempWilg As Button
     
 	' Zmienna przechowująca informację, co użytkownik kliknął w Menu
 	Public CelLogowania As String = ""
@@ -61,7 +65,9 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	EkranTabeli.Initialize
 	EkranTermometru.Initialize
 	EkranTabeliTermometru.Initialize
-    
+	
+
+	
 	B4XPages.AddPage("StronaLogowania", EkranLogowania)
 	B4XPages.AddPage("StronaRC", EkranRC)
 	B4XPages.AddPage("StronaKompas", EkranKompasu)
@@ -82,6 +88,8 @@ End Sub
 
 Private Sub btnIdzDoTerm_Click
 	' Zapisujemy cel i idziemy do logowania
+	Log("btnIdzDoTerm_Click")
+	PolaczZBluetooth("00:11:35:89:71:17")
 	CelLogowania = "StronaTermometr"
 	B4XPages.ShowPage("StronaLogowania")
 End Sub
@@ -136,10 +144,63 @@ Private Sub mqtt_MessageArrived (Topic As String, Payload() As Byte)
 	End If
     
 	' 2. Dane dla Termometru
-	If Topic = "lab/temperatura" Then
-		If EkranTermometru.IsInitialized Then
-			EkranTermometru.OdbierzDaneZSieci(Topic, Payload)
+'	If Topic = "lab/temperatura" Then
+'		If EkranTermometru.IsInitialized Then
+'			EkranTermometru.OdbierzDaneZSieci(Topic, Payload)
+'		End If
+'	End If
+    
+End Sub
+
+Public Sub PolaczZBluetooth(AdresMAC As String)
+	Dim rp As RuntimePermissions
+	Dim p As Phone
+    
+	' Jeśli telefon ma Androida 12 lub nowszego (SDK 31+)
+	If p.SdkVersion >= 31 Then
+        
+		' Najpierw sprawdzamy, czy aplikacja JUŻ MA to uprawnienie
+		If rp.Check("android.permission.BLUETOOTH_CONNECT") = False Then
+			Log("Brak uprawnienia, pytam system...")
+			rp.CheckAndRequest("android.permission.BLUETOOTH_CONNECT")
+			Wait For B4XPage_PermissionResult (Permission As String, Result As Boolean)
+            
+			If Result = False Then
+				Log("Odmowa uprawnień Bluetooth!")
+				xui.MsgboxAsync("Aplikacja potrzebuje uprawnień do połączenia z aparaturą pomiarową.", "Błąd")
+				Return ' Wychodzimy z funkcji
+			End If
+		Else
+			Log("Uprawnienie BLUETOOTH_CONNECT zostało przyznane już wcześniej.")
 		End If
+        
 	End If
     
+	' Jeśli mamy uprawnienia (lub stary system), łączymy się natychmiast
+	Log("Próbuję połączyć z: " & AdresMAC)
+	If serialBT.IsInitialized = False Then serialBT.Initialize("serialBT")
+	serialBT.Connect(AdresMAC)
+End Sub
+
+
+Sub serialBT_Connected (Success As Boolean)
+	If Success Then
+		Log("Połączono z aparaturą!")
+		' Inicjalizujemy AsyncStreamsText, nazwa zdarzenia to "astreamText"
+		astream.Initialize(Me, "astreamText", serialBT.InputStream, serialBT.OutputStream)
+	Else
+		Log("Błąd połączenia sprzętowego...")
+	End If
+End Sub
+
+Sub astreamText_NewText (Text As String)
+	' Jeśli strona istnieje i ma być zaktualizowana:
+	EkranTermometru.OdbierzDaneBluetooth(Text)
+End Sub
+
+
+Public Sub WyslijTekstBluetooth (Tekst As String)
+	If astream.IsInitialized Then ' astream to Twoja instancja AsyncStreams
+		astream.Write(Tekst)
+	End If
 End Sub
