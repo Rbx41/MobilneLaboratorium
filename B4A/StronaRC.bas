@@ -16,7 +16,7 @@ Sub Class_Globals
 
 	Private const TOPIC_RELAY As String = "lab/rc/relay"
     
-	' --- Deklaracja obiektów odpowiadających za kontrole wykresu ---
+	
 	Private WykresLadowania As ChartController
 	Private WykresRozladowania As ChartController
     
