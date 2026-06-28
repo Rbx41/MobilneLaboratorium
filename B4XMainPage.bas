@@ -23,7 +23,9 @@ Sub Class_Globals
 	Public EkranRC As StronaRC
 	Public EkranKompasu As StronaKompas
 	Public EkranTabeli As StronaTabela
-	Public EkranTermometru As StronaTermometr ' <--- NOWA STRONA DLA TERMOMETRU
+	Public EkranTermometru As StronaTermometr
+	Public EkranTemperaturyWilgotnosci As StronaTemperaturaWilgotnosc
+	
 	Public EkranTabeliTermometru As StronaTabelaTemperatura
     
 	
@@ -33,16 +35,20 @@ Sub Class_Globals
 	Private btnIdzPomiaruTempWilg As Button
 
 	Public CelLogowania As String = ""
+	Private EkranPrzewijany As ScrollView
 End Sub
 
-Public Sub Initialize
+Public Sub Initialize As Object
+	Return Me
 End Sub
 
 Private Sub B4XPage_Created (Root1 As B4XView)
 	Root = Root1
     
 
-	Root.LoadLayout("MenuPage")
+	EkranPrzewijany.Initialize(900dip)
+	Root.AddView(EkranPrzewijany, 0, 0, 100%x, 100%y)
+	EkranPrzewijany.Panel.LoadLayout("MenuPage")
 	B4XPages.SetTitle(Me, "Menu Główne Laboratorium")
     
 
@@ -52,15 +58,16 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	EkranTabeli.Initialize
 	EkranTermometru.Initialize
 	EkranTabeliTermometru.Initialize
-	
+	EkranTemperaturyWilgotnosci.Initialize
 
 	
 	B4XPages.AddPage("StronaLogowania", EkranLogowania)
 	B4XPages.AddPage("StronaRC", EkranRC)
 	B4XPages.AddPage("StronaKompas", EkranKompasu)
 	B4XPages.AddPage("StronaTabela", EkranTabeli)
-	B4XPages.AddPage("StronaTermometr", EkranTermometru) ' <--- Dodanie do pamięci
+	B4XPages.AddPage("StronaTermometr", EkranTermometru) 
 	B4XPages.AddPage("StronaTabelaTermometr", EkranTabeliTermometru)
+	B4XPages.AddPage("StronaTemperaturaWilgotnosc", EkranTemperaturyWilgotnosci)
 
 End Sub
 
@@ -73,7 +80,7 @@ End Sub
 Private Sub btnIdzDoTerm_Click
 	PolaczZBluetooth("00:11:35:89:71:17")
 	CelLogowania = "StronaTermometr"
-	B4XPages.ShowPage("StronaLogowania")
+	B4XPages.ShowPage("StronaTermometr")
 End Sub
 
 Private Sub btnIdzDoKompasu_Click
@@ -81,28 +88,56 @@ Private Sub btnIdzDoKompasu_Click
 End Sub
 
 
+Private Sub btnIdzPomiaruTempWilg_Click
+	CelLogowania = "StronaRC"
+	B4XPages.ShowPage("StronaLogowania")
+End Sub
+
+
+
 Public Sub PolaczZSerwerem(AdresIP As String)
-	Dim BrokerUrl As String = "tcp://" & AdresIP & ":1883"    
-	If mqtt.IsInitialized = False Then
-		mqtt.Initialize("mqtt", BrokerUrl, CLIENT_ID)
+	Dim BrokerUrl As String = "tcp://" & AdresIP & ":1883"
+   
+	If mqtt.IsInitialized And mqtt.Connected Then
+		Log("Już połączono z brokerem.")
+		Return
 	End If
+    
+	
+	mqtt.Initialize("mqtt", BrokerUrl, CLIENT_ID)
+    
 	Dim mo As MqttConnectOptions
 	mo.Initialize("", "")
-	mqtt.Connect2(mo)
+    
+	Try
+		mqtt.Connect2(mo)
+	Catch
+		Log("Błąd wywołania Connect2: " & LastException.Message)
+		If EkranLogowania.IsInitialized Then
+			EkranLogowania.UstawStatus("Serwer zajęty, spróbuj ponownie...")
+		End If
+	End Try
 End Sub
+
+
 
 
 Sub mqtt_Connected (Success As Boolean)
 	If Success Then
+		Log("Suckes")
 		If EkranLogowania.IsInitialized Then EkranLogowania.UstawStatus("Połączono!")
 		mqtt.Subscribe("lab/#", 0)
 		If CelLogowania <> "" Then
 			B4XPages.ShowPage(CelLogowania)
 		End If
 	Else
-		If EkranLogowania.IsInitialized Then EkranLogowania.UstawStatus("Błąd połączenia!")
+		If EkranLogowania.IsInitialized Then
+			EkranLogowania.UstawStatus("Błąd: Nie znaleziono brokera!")
+		End If
 	End If
 End Sub
+
+
 
 Private Sub mqtt_MessageArrived (Topic As String, Payload() As Byte)
 
@@ -119,8 +154,6 @@ Public Sub PolaczZBluetooth(AdresMAC As String)
 	Dim p As Phone
 
 	If p.SdkVersion >= 31 Then
-        
-		' Najpierw sprawdzamy, czy aplikacja JUŻ MA to uprawnienie
 		If rp.Check("android.permission.BLUETOOTH_CONNECT") = False Then
 			Log("Brak uprawnienia, pytam system...")
 			rp.CheckAndRequest("android.permission.BLUETOOTH_CONNECT")
@@ -137,7 +170,6 @@ Public Sub PolaczZBluetooth(AdresMAC As String)
         
 	End If
     
-	' Jeśli mamy uprawnienia (lub stary system), łączymy się natychmiast
 	Log("Próbuję połączyć z: " & AdresMAC)
 	If serialBT.IsInitialized = False Then serialBT.Initialize("serialBT")
 	serialBT.Connect(AdresMAC)
@@ -147,21 +179,23 @@ End Sub
 Sub serialBT_Connected (Success As Boolean)
 	If Success Then
 		Log("Połączono z aparaturą!")
-		' Inicjalizujemy AsyncStreamsText, nazwa zdarzenia to "astreamText"
 		astream.Initialize(Me, "astreamText", serialBT.InputStream, serialBT.OutputStream)
 	Else
 		Log("Błąd połączenia sprzętowego...")
 	End If
 End Sub
 
+
+
+
 Sub astreamText_NewText (Text As String)
-	' Jeśli strona istnieje i ma być zaktualizowana:
 	EkranTermometru.OdbierzDaneBluetooth(Text)
 End Sub
 
 
 Public Sub WyslijTekstBluetooth (Tekst As String)
-	If astream.IsInitialized Then ' astream to Twoja instancja AsyncStreams
+	If astream.IsInitialized Then 
 		astream.Write(Tekst)
 	End If
 End Sub
+

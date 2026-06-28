@@ -37,31 +37,26 @@ End Sub
 
 Private Sub B4XPage_Created (Root1 As B4XView)
 	Root = Root1
-	EkranPrzewijany.Initialize(1400dip)
+	EkranPrzewijany.Initialize(1800dip)
 	Root.AddView(EkranPrzewijany, 0, 0, 100%x, 100%y)
     
 	EkranPrzewijany.Panel.LoadLayout("TabelaLayout")
 	B4XPages.SetTitle(Me, "Raport Pomiarowy RC")
     
-	' --- CZCIONKA WNĘTRZA TABELI 1 ---
 	TabelaLadowanie.AddColumn("Nr", TabelaLadowanie.COLUMN_TYPE_NUMBERS)
 	TabelaLadowanie.AddColumn("Czas [s]", TabelaLadowanie.COLUMN_TYPE_TEXT)
 	TabelaLadowanie.AddColumn("Napięcie [V]", TabelaLadowanie.COLUMN_TYPE_TEXT)
 	TabelaLadowanie.LabelsFont = xui.CreateFont(Typeface.LoadFromAssets("lmroman10-bold.otf"), 14) ' <--- To zmienia czcionkę wierszy
 	TabelaLadowanie.TextColor = xui.Color_Black
     
-	' --- CZCIONKA WNĘTRZA TABELI 2 ---
 	TabelaRozladowanie.AddColumn("Nr", TabelaRozladowanie.COLUMN_TYPE_NUMBERS)
 	TabelaRozladowanie.AddColumn("Czas [s]", TabelaRozladowanie.COLUMN_TYPE_TEXT)
 	TabelaRozladowanie.AddColumn("Napięcie [V]", TabelaRozladowanie.COLUMN_TYPE_TEXT)
 	TabelaRozladowanie.LabelsFont = xui.CreateFont(Typeface.LoadFromAssets("lmroman10-bold.otf"), 14) ' <--- To zmienia czcionkę wierszy
 	TabelaRozladowanie.TextColor = xui.Color_Black
     
-	' --- ZMIANA CZCIONKI DLA ZWYKŁYCH ETYKIET (TYTUŁÓW) ---
 	UstawWlasnaCzcionke(EkranPrzewijany.Panel, "lmroman10-bold.otf")
     
-	' Ekran załadowany!
-	WczytajDane(mCzasL, mNapiecieL, mCzasR, mNapiecieR)
 End Sub
 
 

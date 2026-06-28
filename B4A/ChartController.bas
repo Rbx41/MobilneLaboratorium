@@ -12,8 +12,8 @@ Sub Class_Globals
 	Private mCzasZerowy As Double
     
 	Private mTypWykresu As String
-	Private mVmin As Double
-	Private mVmax As Double
+	Public mVmin As Double
+	Public mVmax As Double
 	Public mTauTeoretyczne As Double
     
 	Public PomiaryWartosci As List
@@ -92,6 +92,39 @@ Public Sub DodajPunkt(WartoscEksperyment As Double, CzasZMikrokontrolera As Doub
 		mChart.DrawChart
 	End If
 End Sub
+
+
+
+Public Sub DodajPunkt(WartoscEksperyment As Double, CzasZMikrokontrolera As Double, WartoscTeoretyczna As Double)
+    Dim CzasWzgledny As Double
+    
+    If mCounter = 0 Then
+        mCzasZerowy = CzasZMikrokontrolera
+        CzasWzgledny = 0
+    Else
+        CzasWzgledny = CzasZMikrokontrolera - mCzasZerowy
+    End If
+    
+    mCounter = mCounter + 1
+    
+    PomiaryWartosci.Add(WartoscEksperyment)
+    PomiaryCzasu.Add(CzasWzgledny)
+    
+    If mCounter Mod 4 = 0 Or mCounter = 1 Then
+        Dim pokazPodzialke As Boolean = (mCounter Mod 60 = 0 Or mCounter = 1)
+        Dim CzasSformatowany As String = NumberFormat(CzasWzgledny, 1, 1)
+        
+        ' Wartość teoretyczna ląduje bezpośrednio w tablicy wykresu
+        mChart.AddLineMultiplePoints(CzasSformatowany, Array As Double(WartoscTeoretyczna, WartoscEksperyment), pokazPodzialke)
+    End If
+ 
+    If mCounter Mod 16 = 0 Then
+        mChart.DrawChart
+    End If
+End Sub
+
+
+
 
 Public Sub DodajPunktMonitor(WartoscEksperyment As Double, CzasZMikrokontrolera As Double)
 	Dim CzasWzgledny As Double

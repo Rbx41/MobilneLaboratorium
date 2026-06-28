@@ -8,8 +8,6 @@ Sub Class_Globals
 	Private Root As B4XView
 	Private xui As XUI
 
-	Private btnOff As Button
-	Private btnOn As Button
 	Private RealTimeChart As xChart
 	Private RealTimeChart2 As xChart
 	Private btnStart As Button
@@ -20,11 +18,12 @@ Sub Class_Globals
 	Private WykresLadowania As ChartController
 	Private WykresRozladowania As ChartController
     
-	' --- STANY ---
-	Private Const Charging As Int  = 1
-	Private Const Discharging As Int  = 2
-	Private Const Idle As Int = 3
-	Private Const Finished As Int = 4 ' <--- PRZYWRÓCONY STAN ZAKOŃCZENIA
+	
+	
+	Private Const Ladowanie As Int  = 1
+	Private Const Rozladowanie As Int  = 2
+	Private Const Spoczynek As Int = 3
+	Private Const Zakonczony As Int = 4 
 	Private State As Int
     
 	Private EkranPrzewijany As ScrollView
@@ -54,7 +53,7 @@ Sub Class_Globals
 End Sub
 
 Public Sub Initialize As Object
-	State = Idle
+	State = Spoczynek
 	Return Me
 End Sub
 
@@ -76,78 +75,73 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	UstawWlasnaCzcionke(EkranPrzewijany.Panel, "lmroman10-bold.otf")
 End Sub
 
+
+
 Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 	If CzyStronaZbudowana = False Then Return
 	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
     
-	' 1. ODBIÓR DANYCH DO WYKRESU
+
 	If Topic = "lab/rc/voltage" Then
 		Dim podzieloneDane() As String = Regex.Split(",", msg)
-		If podzieloneDane.Length = 2 Then
-			Dim WartoscAnalogowa As Double = podzieloneDane(0)
-			Dim CzasZMikrokontrolera As Double = podzieloneDane(1)
+		
+			
+		Dim WartoscAnalogowa As Double = podzieloneDane(0)
+		Dim CzasZMikrokontrolera As Double = podzieloneDane(1)
             
-			Select State
-				Case Charging
-					WykresLadowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
-				Case Discharging
-					WykresRozladowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
-				Case Idle
-					WykresLadowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
-					WykresRozladowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
+		Select State
+			Case Ladowanie
+				WykresLadowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
+			Case Rozladowanie
+				WykresRozladowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
+			Case Spoczynek
+				WykresLadowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
+				WykresRozladowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
                     
-					' Zapisujemy napięcie do pamięci globalnej
-					OstatnieNapiecie = WartoscAnalogowa
+				OstatnieNapiecie = WartoscAnalogowa
                     
-					Dim AktualneVmin As Double = 0.1
-					If IsNumber(VminInput.Text) Then AktualneVmin = VminInput.Text
+'				Dim AktualneVmin As Double = 0.1
+'				If IsNumber(VminInput.Text) Then AktualneVmin = VminInput.Text
+'                    
+''				btnStart.Enabled = True
+'                    
+'				If WartoscAnalogowa <= (AktualneVmin + 0.05) Then
+'					btnStart.Text = "START"
+'				Else
+'					btnStart.Text = "START (" & NumberFormat(WartoscAnalogowa, 1, 2) & "V)"
+'				End If
                     
-					' Przycisk JEST ZAWSZE AKTYWNY, żeby nie blokować użytkownika
-					btnStart.Enabled = True
-                    
-					If WartoscAnalogowa <= (AktualneVmin + 0.05) Then
-						btnStart.Text = "START"
-					Else
-						' Układ utknął na wyższym napięciu - proponujemy start z tego miejsca
-						btnStart.Text = "START (" & NumberFormat(WartoscAnalogowa, 1, 2) & "V)"
-					End If
-                    
-				Case Finished ' <--- LOGIKA ZAMROŻENIA WYKRESU
-					' Wykres zamarza (nie rysujemy po nim), ale odświeżamy pamięć napięcia
-					OstatnieNapiecie = WartoscAnalogowa
+			Case Zakonczony 
+				OstatnieNapiecie = WartoscAnalogowa
 			End Select
-		End If
+		
         
-		' 2. ODBIÓR GOTOWEGO WYNIKU TAU
 	Else If Topic = "lab/rc/tau" Then
 		Dim podzieloneTau() As String = Regex.Split(",", msg)
-		If podzieloneTau.Length = 2 Then
+'		If podzieloneTau.Length = 2 Then
+			
 			Dim Tryb As String = podzieloneTau(0)
 			Dim CzasTau As Double = podzieloneTau(1)
             
-			Dim WynikText As String = "Stała RC z Edge: " & NumberFormat(CzasTau, 1, 3) & " s"
+			Dim WynikText As String = "Stała RC : " & NumberFormat(CzasTau, 1, 3) & " s"
             
 			If Tryb = "LADOWANIE" Then
-				Log("Edge Tau (Ladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
+				Log(" Tau (Ladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
 				LabelRCLadowanie.Text = WynikText
                 
 			Else If Tryb = "ROZLADOWANIE" Then
-				Log("Edge Tau (Rozladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
+				Log(" Tau (Rozladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
 				LabelRCRozladowanie.Text = WynikText
 			End If
-		End If
+'		End If
         
-		' 3. ODBIÓR ZDARZEŃ (Sufit / Podłoga)
 	Else If Topic = "lab/rc/event" Then
 		If msg = "VMAX" Then
-			SwitchOffRelay
-			State = Discharging
+			State = Rozladowanie
 		Else If msg = "VMIN" Then
-			State = Finished ' <--- PRZEJŚCIE DO NOWEGO STANU
+			State = Zakonczony 
 			ZablokujInterfejs(False)
-			btnPokazTabele.Enabled = True
-			Log("Koniec pomiaru. Układ gotowy do nowej próby.")
-            
+			btnPokazTabele.Enabled = True            
 			btnStart.Text = "PONÓW EKSPERYMENT"
 			btnStart.Enabled = True
 		End If
@@ -163,11 +157,9 @@ Private Sub btnStart_Click
 	Vmin = VminInput.Text
 	Vmax = VmaxInput.Text
     
-	' === TUTAJ BRAKOWAŁO AUTOKOREKTY (KROK 3) ===
-	' Jeśli sprzęt utknął wyżej niż założyliśmy (z marginesem 0.05V)
 	If OstatnieNapiecie > (Vmin + 0.05) Then
-		Vmin = OstatnieNapiecie ' Akceptujemy fizyczną rzeczywistość
-		VminInput.Text = NumberFormat(Vmin, 1, 2) ' Podmieniamy tekst w polu na ekranie
+		Vmin = OstatnieNapiecie 
+		VminInput.Text = NumberFormat(Vmin, 1, 2) 
 		xui.MsgboxAsync("Układ nie mógł osiągnąć wpisanego Vmin. Zaktualizowano dolny próg do fizycznie możliwego: " & NumberFormat(Vmin, 1, 2) & "V", "Autokorekta")
 	End If
     
@@ -195,11 +187,16 @@ Private Sub btnStart_Click
     
 	WykresLadowania.mTauTeoretyczne = WpisaneTau
 	WykresRozladowania.mTauTeoretyczne = WpisaneTau
+	
+	WykresLadowania.mVmin = Vmin
+	WykresLadowania.mVmax = Vmax
+	WykresRozladowania.mVmin = Vmin
+	WykresRozladowania.mVmax = Vmax
     
 	WykresLadowania.ResetujWykres
 	WykresRozladowania.ResetujWykres
     
-	State = Charging ' <--- Ustawienie stanu na Ładowanie resetuje stan Finished
+	State = Ladowanie
     
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	If MainScreen.mqtt.Connected Then
@@ -286,13 +283,6 @@ Private Sub ZatwierdzProbkowanie(ProbInput_ As String) As Boolean
 	Return True
 End Sub
 
-Private Sub btnOn_Click
-	SwitchOnRelay
-End Sub
-
-Private Sub btnOff_Click
-	SwitchOffRelay
-End Sub
 
 Private Sub SwitchOffRelay
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
@@ -310,10 +300,8 @@ Private Sub SwitchOnRelay
 	End If
 End Sub
 
+
 Private Sub ZablokujInterfejs (Zablokowane As Boolean)
-	btnOn.Enabled = Not(Zablokowane)
-	btnOff.Enabled = Not(Zablokowane)
-    
 	RInput.Enabled = Not(Zablokowane)
 	CInput.Enabled = Not(Zablokowane)
 	ProbInput.Enabled = Not(Zablokowane)
@@ -331,21 +319,14 @@ Private Sub UstawWlasnaCzcionke(PanelGlowny As B4XView, NazwaPliku As String)
 	Next
 End Sub
 
+
 Private Sub btnPokazTabele_Click
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
-        
 	If WykresLadowania.PomiaryCzasu.Size > 0 Then
-		' 1. Wysłanie danych liczbowych
 		MainScreen.EkranTabeli.WczytajDane(WykresLadowania.PomiaryCzasu, WykresLadowania.PomiaryWartosci, WykresRozladowania.PomiaryCzasu, WykresRozladowania.PomiaryWartosci)
-        
-		' 2. ZROBIENIE "ZDJĘCIA" WYKRESOM (Snapshot)
 		Dim SnapshotLadowania As B4XBitmap = RealTimeChart.mBase.Snapshot
 		Dim SnapshotRozladowania As B4XBitmap = RealTimeChart2.mBase.Snapshot
-        
-		' 3. Przekazanie obrazków do nowej strony
 		MainScreen.EkranTabeli.PokazWykresy(SnapshotLadowania, SnapshotRozladowania)
-        
-		' 4. Pokazanie strony podsumowania
 		B4XPages.ShowPage("StronaTabela")
 	Else
 		xui.MsgboxAsync("Brak danych do wyświetlenia!", "Błąd")
