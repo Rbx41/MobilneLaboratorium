@@ -42,7 +42,8 @@ Private Sub btnConnect_Click
     If MainScreen.mqtt.IsInitialized And MainScreen.mqtt.Connected Then
         Log("MQTT jest już połączone! Pomijam łączenie.")
         lblStatus.Text = "Już połączono!"
-        B4XPages.ShowPage("StronaRC") 
+		Dim CelLog As String =  B4XPages.MainPage.CelLogowania
+		B4XPages.ShowPage(CelLog)
         Return 
     End If
     

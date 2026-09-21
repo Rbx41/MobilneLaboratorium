@@ -48,6 +48,12 @@ Sub Class_Globals
 	Private Const ProbMax As Double = 800.0
 	Private Const ProbMin As Double = 60.0
     
+	Private CzasWzgledny As Double
+	Private CzasZerowy As Double
+	Private TauTeoretyczne As Double
+	
+	Private PierwszyPomiar As Boolean
+	
 	Private Vmax As Double
 	Private Vmin As Double
 End Sub
@@ -58,8 +64,7 @@ Public Sub Initialize As Object
 End Sub
 
 Private Sub B4XPage_Created (Root1 As B4XView)
-	Root = Root1
-    
+	Root = Root1    
 	EkranPrzewijany.Initialize(1200dip)
 	Root.AddView(EkranPrzewijany, 0, 0, 100%x, 100%y)
 
@@ -68,84 +73,148 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	B4XPages.SetTitle(Me, "Eksperyment Układu RC")
 	Log("Moduł RC uruchomiony...")
 
-	WykresLadowania.Initialize(RealTimeChart, "ŁADOWANIE", 0.10, 3.26, 6.6)
-	WykresRozladowania.Initialize(RealTimeChart2, "ROZŁADOWANIE", 0.10, 3.26, 6.6)
-    
+
+	WykresLadowania.Initialize ("LADOWANIE",RealTimeChart)
+	WykresRozladowania.Initialize ("ROZLADOWANIE",RealTimeChart2)
+	SkonfigurujWykresy
+	
+	
 	CzyStronaZbudowana = True
 	UstawWlasnaCzcionke(EkranPrzewijany.Panel, "lmroman10-bold.otf")
 End Sub
 
 
+Public Sub SkonfigurujWykresy()
+	
+	
+	
+	WykresLadowania.DodajKrzywa("Krzywa Teoretyczna", xui.Color_Yellow)
+	WykresLadowania.DodajKrzywa("Krzywa Rzeczywista", xui.Color_Red)
+	
+	WykresLadowania.UstawPrzedzialOsiY(0,5.0)
+	WykresLadowania.UstawNazwyOsi("Czas [s]", "Napięcie [V]")
+	WykresLadowania.UstawAutoSkalowanie(False)
+	WykresLadowania.UstawPodTytul("Czerwona: Pomiar | Żółta: Teoria")
+	
+	
+	WykresRozladowania.DodajKrzywa("Krzywa Teoretyczna", xui.Color_Yellow)
+	WykresRozladowania.DodajKrzywa("Krzywa Rzeczywista", xui.Color_Red)
+	
+	WykresRozladowania.UstawPrzedzialOsiY(0,5.0)
+	WykresRozladowania.UstawNazwyOsi("Czas [s]", "Napięcie [V]")
+	WykresRozladowania.UstawAutoSkalowanie(False)
+	WykresRozladowania.UstawPodTytul("Czerwona: Pomiar | Żółta: Teoria")
+	
 
-Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
+End Sub
+
+
+Public Sub WartoscTeoretycznaLadowania( CzasZMikrokontrolera As Double)
+
+	Dim PotegaE As Double = Power(cE, -CzasWzgledny / TauTeoretyczne)
+	
+	Dim V_in As Double = 3.3
+	Dim WartoscTeoretyczna As Double = V_in + (Vmin - V_in) * PotegaE
+	
+	Return WartoscTeoretyczna
+	
+End Sub
+
+Public Sub ObliczCzasWzgledny(CzasZMikrokontrolera_ As Double)
+	If PierwszyPomiar = True Then
+		CzasZerowy = CzasZMikrokontrolera_
+		PierwszyPomiar = False
+		CzasWzgledny = 0
+	Else
+		CzasWzgledny = CzasZMikrokontrolera_ - CzasZerowy
+	End If
+End Sub
+
+Public Sub WartoscTeoretycznaRozladowania( CzasZMikrokontrolera As Double)
+	
+	Dim PotegaE As Double = Power(cE, -CzasWzgledny / TauTeoretyczne)
+	
+	Dim WartoscTeoretyczna = Vmax * PotegaE
+	Return WartoscTeoretyczna
+End Sub
+
+Public Sub OdbierzDaneZSieci (Temat As String, Payload() As Byte)
 	If CzyStronaZbudowana = False Then Return
-	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
+	Dim wiad As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
     
 
-	If Topic = "lab/rc/voltage" Then
-		Dim podzieloneDane() As String = Regex.Split(",", msg)
-		
-			
+	If Temat = "lab/rc/voltage" Then
+		Dim podzieloneDane() As String = Regex.Split(",", wiad)
 		Dim WartoscAnalogowa As Double = podzieloneDane(0)
 		Dim CzasZMikrokontrolera As Double = podzieloneDane(1)
-            
+		ObliczCzasWzgledny(CzasZMikrokontrolera)
+		   
 		Select State
 			Case Ladowanie
-				WykresLadowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
+				Dim V As Double = WartoscTeoretycznaLadowania(CzasZMikrokontrolera)
+				Dim Tablica() As Double = Array As Double(V, WartoscAnalogowa)
+				WykresLadowania.DodajPunkty(CzasWzgledny, Tablica)
+				Dim MainScreen As B4XMainPage = B4XPages.MainPage
+				MainScreen.EkranTabeli.DodajDaneLadowania(CzasWzgledny, WartoscAnalogowa)
+				
 			Case Rozladowanie
-				WykresRozladowania.DodajPunkt(WartoscAnalogowa, CzasZMikrokontrolera)
+				Dim V As Double = WartoscTeoretycznaRozladowania(CzasZMikrokontrolera)
+				Dim Tablica() As Double = Array As Double(V, WartoscAnalogowa)
+				WykresRozladowania.DodajPunkty(CzasWzgledny, Tablica)
+				Dim MainScreen As B4XMainPage = B4XPages.MainPage
+				MainScreen.EkranTabeli.DodajDaneRozladowania(CzasWzgledny, WartoscAnalogowa)
 			Case Spoczynek
-				WykresLadowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
-				WykresRozladowania.DodajPunktMonitor(WartoscAnalogowa, CzasZMikrokontrolera)
-                    
+				WykresLadowania.DodajPunktMonitor(WartoscAnalogowa, CzasWzgledny)
+				WykresRozladowania.DodajPunktMonitor(WartoscAnalogowa, CzasWzgledny)      
 				OstatnieNapiecie = WartoscAnalogowa
-                    
-'				Dim AktualneVmin As Double = 0.1
-'				If IsNumber(VminInput.Text) Then AktualneVmin = VminInput.Text
-'                    
-''				btnStart.Enabled = True
-'                    
-'				If WartoscAnalogowa <= (AktualneVmin + 0.05) Then
-'					btnStart.Text = "START"
-'				Else
-'					btnStart.Text = "START (" & NumberFormat(WartoscAnalogowa, 1, 2) & "V)"
-'				End If
                     
 			Case Zakonczony 
 				OstatnieNapiecie = WartoscAnalogowa
 			End Select
 		
+	Else If Temat = "lab/rc/tau" Then
+		OdbierzStalaRC(wiad)
+
         
-	Else If Topic = "lab/rc/tau" Then
-		Dim podzieloneTau() As String = Regex.Split(",", msg)
-'		If podzieloneTau.Length = 2 Then
-			
-			Dim Tryb As String = podzieloneTau(0)
-			Dim CzasTau As Double = podzieloneTau(1)
-            
-			Dim WynikText As String = "Stała RC : " & NumberFormat(CzasTau, 1, 3) & " s"
-            
-			If Tryb = "LADOWANIE" Then
-				Log(" Tau (Ladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
-				LabelRCLadowanie.Text = WynikText
-                
-			Else If Tryb = "ROZLADOWANIE" Then
-				Log(" Tau (Rozladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
-				LabelRCRozladowanie.Text = WynikText
-			End If
-'		End If
-        
-	Else If Topic = "lab/rc/event" Then
-		If msg = "VMAX" Then
-			State = Rozladowanie
-		Else If msg = "VMIN" Then
-			State = Zakonczony 
-			ZablokujInterfejs(False)
-			btnPokazTabele.Enabled = True            
-			btnStart.Text = "PONÓW EKSPERYMENT"
-			btnStart.Enabled = True
+	Else If Temat = "lab/rc/event" Then
+		If wiad = "VMAX" Then
+			Rozladuj
+		Else If wiad = "VMIN" Then
+			ZakonczPomiar
 		End If
 	End If
+End Sub
+
+
+Public Sub OdbierzStalaRC(wiadomosc As String)
+	Dim podzieloneTau() As String = Regex.Split(",", wiadomosc)
+	Dim Tryb As String = podzieloneTau(0)
+	Dim CzasTau As Double = podzieloneTau(1)
+	Dim WynikText As String = "Stała RC : " & NumberFormat(CzasTau, 1, 3) & " s"
+            
+	If Tryb = "LADOWANIE" Then
+		Log(" Tau (Ladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
+		LabelRCLadowanie.Text = WynikText
+                
+	Else If Tryb = "ROZLADOWANIE" Then
+		Log(" Tau (Rozladowanie): " & NumberFormat(CzasTau, 1, 3) & " s")
+		LabelRCRozladowanie.Text = WynikText
+	End If
+	
+End Sub
+
+Public Sub Rozladuj
+	State = Rozladowanie
+	PierwszyPomiar = True
+End Sub
+
+Public Sub ZakonczPomiar
+	State = Zakonczony
+	ZablokujInterfejs(False)
+	btnPokazTabele.Enabled = True
+	btnStart.Text = "PONÓW EKSPERYMENT"
+	btnStart.Enabled = True
+	PierwszyPomiar = True
 End Sub
 
 Private Sub btnStart_Click
@@ -169,8 +238,9 @@ Private Sub btnStart_Click
 
 	Dim WpisaneR As Double = RInput.Text
 	Dim WpisaneC As Double = CInput.Text
-	Dim WpisaneTau As Double = (WpisaneR * WpisaneC) / 1000.0
-    
+'	Dim WpisaneTau As Double = (WpisaneR * WpisaneC) / 1000.0
+	TauTeoretyczne  = (WpisaneR * WpisaneC) / 1000.0
+	
 	If ZatwierdzProbkowanie(ProbInput.Text) = False Then
 		Return
 	End If
@@ -184,19 +254,23 @@ Private Sub btnStart_Click
     
 	LabelRCLadowanie.Text = "Stała RC wyznaczona doświadczalnie: ---"
 	LabelRCRozladowanie.Text = "Stała RC wyznaczona doświadczalnie: ---"
-    
-	WykresLadowania.mTauTeoretyczne = WpisaneTau
-	WykresRozladowania.mTauTeoretyczne = WpisaneTau
 	
-	WykresLadowania.mVmin = Vmin
-	WykresLadowania.mVmax = Vmax
-	WykresRozladowania.mVmin = Vmin
-	WykresRozladowania.mVmax = Vmax
+    
+'	WykresLadowania.mTauTeoretyczne = WpisaneTau
+'	WykresRozladowania.mTauTeoretyczne = WpisaneTau
+	
+	
+	
+'	WykresLadowania.mVmin = Vmin
+'	WykresLadowania.mVmax = Vmax
+'	WykresRozladowania.mVmin = Vmin
+'	WykresRozladowania.mVmax = Vmax
     
 	WykresLadowania.ResetujWykres
 	WykresRozladowania.ResetujWykres
     
 	State = Ladowanie
+	PierwszyPomiar = True
     
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	If MainScreen.mqtt.Connected Then
@@ -322,8 +396,8 @@ End Sub
 
 Private Sub btnPokazTabele_Click
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
-	If WykresLadowania.PomiaryCzasu.Size > 0 Then
-		MainScreen.EkranTabeli.WczytajDane(WykresLadowania.PomiaryCzasu, WykresLadowania.PomiaryWartosci, WykresRozladowania.PomiaryCzasu, WykresRozladowania.PomiaryWartosci)
+	If MainScreen.EkranTabeli.DanePelne = True Then
+'		MainScreen.EkranTabeli.WczytajDane(WykresLadowania.PomiaryCzasu, WykresLadowania.PomiaryWartosci, WykresRozladowania.PomiaryCzasu, WykresRozladowania.PomiaryWartosci)
 		Dim SnapshotLadowania As B4XBitmap = RealTimeChart.mBase.Snapshot
 		Dim SnapshotRozladowania As B4XBitmap = RealTimeChart2.mBase.Snapshot
 		MainScreen.EkranTabeli.PokazWykresy(SnapshotLadowania, SnapshotRozladowania)

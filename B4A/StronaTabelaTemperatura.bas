@@ -14,25 +14,32 @@ Sub Class_Globals
 	' TABELA TEMPERATURY
 	Private TabelaTemperatury As B4XTable
     
-	' SCHOWKI NA DANE
-	Private mListaCzasow As List
-	Private mListaTemperatur As List
     
-	' PRZYCISKI I WIDOKI
+	Private NumerPomiaru As Double
+	Private DanePomiarowe As List
+	
+
 	Private PobierzBtn As Button
-	Private ImgWykres As B4XView ' Jeden wykres dla temperatury
+
+	
+	Private TymczasowyWykres As B4XBitmap
+	Private ImgTemperatura As ImageView
 End Sub
 
 Public Sub Initialize As Object
-	mListaCzasow.Initialize
-	mListaTemperatur.Initialize
+	DanePomiarowe.Initialize
 	Return Me
 End Sub
 
+
+
+
 Private Sub B4XPage_Created (Root1 As B4XView)
 	Root = Root1
+
 	EkranPrzewijany.Initialize(1000dip) ' Wysokość dopasuj do layoutu
 	Root.AddView(EkranPrzewijany, 0, 0, 100%x, 100%y)
+	
     
 	EkranPrzewijany.Panel.LoadLayout("TabelaTermoLayout")
 	B4XPages.SetTitle(Me, "Raport Temperatury")
@@ -44,26 +51,45 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	TabelaTemperatury.LabelsFont = xui.CreateFont(Typeface.LoadFromAssets("lmroman10-bold.otf"), 14)
 	TabelaTemperatury.TextColor = xui.Color_Black
     
-	' --- CZCIONKA DLA TYTUŁÓW ---
 	UstawWlasnaCzcionke(EkranPrzewijany.Panel, "lmroman10-bold.otf")
+	
+	
+	
+	
+End Sub
+
+
+Private Sub B4XPage_Appear
+	WczytajDane
+	ImgTemperatura.Bitmap = TymczasowyWykres
+	
+End Sub
+
+Public Sub ZapiszWykres(Wykres As B4XBitmap)
+	
+	TymczasowyWykres = Wykres
 End Sub
 
 ' Metoda wywoływana z głównej strony do przesłania danych
-Public Sub WczytajDane(ListaCzasow As List, ListaTemperatur As List)
-	mListaCzasow = ListaCzasow
-	mListaTemperatur = ListaTemperatur
-    
-	If TabelaTemperatury.IsInitialized = False Then Return
-    
-	' --- PAKOWANIE DANYCH DO TABELI ---
-	Dim DaneTabeli As List
-	DaneTabeli.Initialize
-	For i = 0 To mListaCzasow.Size - 1
-		DaneTabeli.Add(Array As Object(i + 1, _
-            NumberFormat(mListaCzasow.Get(i), 1, 2), _
-            NumberFormat(mListaTemperatur.Get(i), 1, 2)))
-	Next
-	TabelaTemperatury.SetData(DaneTabeli)
+Public Sub WczytajDane()
+
+	TabelaTemperatury.SetData(DanePomiarowe)
+End Sub
+
+
+Public Sub DanePelne() As Boolean
+	If DanePomiarowe.Size > 0 Then
+		Return True
+	End If
+	
+	Return False
+End Sub
+
+Public Sub DodajDane(Czas As Double, Temperatura As Double)
+	 
+	NumerPomiaru = NumerPomiaru + 1
+	DanePomiarowe.Add(Array As Object(NumerPomiaru, NumberFormat(Czas, 1, 2), NumberFormat(Temperatura, 1, 3)))
+
 End Sub
 
 ' Eksport do CSV (uproszczony dla temperatury)
@@ -71,15 +97,17 @@ Private Sub PobierzBtn_Click
 	Dim CSV As StringBuilder
 	CSV.Initialize
     
-	' Nagłówki
+	
 	CSV.Append("Czas [s],Temperatura [°C]").Append(CRLF)
+	
+	
     
-	' Wiersze danych
-	For i = 0 To mListaCzasow.Size - 1
-		Dim czas As String = NumberFormat(mListaCzasow.Get(i), 1, 2)
-		Dim temp As String = NumberFormat(mListaTemperatur.Get(i), 1, 2)
-		CSV.Append(czas).Append(",").Append(temp).Append(CRLF)
-	Next
+'	' Wiersze danych
+'	For i = 0 To mListaCzasow.Size - 1
+'		Dim czas As String = NumberFormat(mListaCzasow.Get(i), 1, 2)
+'		Dim temp As String = NumberFormat(mListaTemperatur.Get(i), 1, 2)
+'		CSV.Append(czas).Append(",").Append(temp).Append(CRLF)
+'	Next
     
 	' Zapis
 	Dim NazwaPliku As String = "Pomiar_Temperatury_" & DateTime.Now & ".csv"
@@ -93,12 +121,6 @@ Private Sub PobierzBtn_Click
 	End Try
 End Sub
 
-' Wyświetlenie zrzutu wykresu
-Public Sub PokazWykres(ObrazWykresu As B4XBitmap)
-	If ImgWykres.IsInitialized Then
-		ImgWykres.SetBitmap(ObrazWykresu)
-	End If
-End Sub
 
 ' --- NARZĘDZIA ---
 Private Sub UstawWlasnaCzcionke(PanelGlowny As B4XView, NazwaPliku As String)

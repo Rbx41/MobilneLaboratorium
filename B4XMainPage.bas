@@ -89,7 +89,7 @@ End Sub
 
 
 Private Sub btnIdzPomiaruTempWilg_Click
-	CelLogowania = "StronaRC"
+	CelLogowania = "StronaTemperaturaWilgotnosc"
 	B4XPages.ShowPage("StronaLogowania")
 End Sub
 
@@ -144,6 +144,13 @@ Private Sub mqtt_MessageArrived (Topic As String, Payload() As Byte)
 	If Topic.StartsWith("lab/rc/") Then
 		If EkranRC.IsInitialized Then
 			EkranRC.OdbierzDaneZSieci(Topic, Payload)
+		End If
+	End If
+	
+	If Topic.StartsWith("lab/temperatura_wilg/") Then
+		Log("lab/temperatura_wilg/")
+		If EkranTemperaturyWilgotnosci.IsInitialized Then
+			EkranTemperaturyWilgotnosci.OdbierzDaneZSieci(Topic, Payload)
 		End If
 	End If
     

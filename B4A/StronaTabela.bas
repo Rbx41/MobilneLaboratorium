@@ -8,7 +8,7 @@ Sub Class_Globals
 	Private Root As B4XView
 	Private xui As XUI
     
-	' ZMIENNE EKRANU PRZEWIJANEGO
+	
 	Private EkranPrzewijany As ScrollView
     
 	' NASZE DWIE OSOBNE TABELE
@@ -20,10 +20,17 @@ Sub Class_Globals
 	
 	' Zmienna dla naszego przycisku przenoszącego do układu RC
 	Private PobierzBtn As Button
-	
-	
 	Private ImgLadowanie As B4XView
 	Private ImgRozladowanie As B4XView
+	
+	Private ImgTymczasowyLadowanie As B4XBitmap
+	Private ImgTymczasowyRozladowanie As B4XBitmap
+	
+	
+	Dim DaneLadowania As List
+	Dim DaneRozladowania As List
+	Private NumerPomiarL As Double
+	Private NumerPomiarR As Double
 	
 End Sub
 
@@ -32,6 +39,12 @@ Public Sub Initialize As Object
 	mNapiecieL.Initialize
 	mCzasR.Initialize
 	mNapiecieR.Initialize
+	
+	DaneLadowania.Initialize
+	DaneRozladowania.Initialize
+	
+	NumerPomiarL = 0
+	NumerPomiarR = 0
 	Return Me
 End Sub
 
@@ -42,6 +55,7 @@ Private Sub B4XPage_Created (Root1 As B4XView)
     
 	EkranPrzewijany.Panel.LoadLayout("TabelaLayout")
 	B4XPages.SetTitle(Me, "Raport Pomiarowy RC")
+	
     
 	TabelaLadowanie.AddColumn("Nr", TabelaLadowanie.COLUMN_TYPE_NUMBERS)
 	TabelaLadowanie.AddColumn("Czas [s]", TabelaLadowanie.COLUMN_TYPE_TEXT)
@@ -57,35 +71,66 @@ Private Sub B4XPage_Created (Root1 As B4XView)
     
 	UstawWlasnaCzcionke(EkranPrzewijany.Panel, "lmroman10-bold.otf")
     
+	
 End Sub
 
 
-Public Sub WczytajDane(CzasL As List, NapiecieL As List, CzasR As List, NapiecieR As List)
-	' Aktualizujemy schowek
-	mCzasL = CzasL
-	mNapiecieL = NapiecieL
-	mCzasR = CzasR
-	mNapiecieR = NapiecieR
-    
-	' Zabezpieczenie: czy tabele już fizycznie istnieją
-	If TabelaLadowanie.IsInitialized = False Then Return
-    
-	' --- PAKOWANIE DANYCH DO TABELI 1: ŁADOWANIE ---
-	Dim DaneLadowania As List
-	DaneLadowania.Initialize
-	For i = 0 To CzasL.Size - 1
-		DaneLadowania.Add(Array As Object(i + 1, NumberFormat(CzasL.Get(i), 1, 2), NumberFormat(NapiecieL.Get(i), 1, 3)))
-	Next
+
+
+Private Sub B4XPage_Appear
+	ZaladujTabele
+	
+	ImgLadowanie.SetBitmap(ImgTymczasowyLadowanie)
+	ImgRozladowanie.SetBitmap(ImgTymczasowyRozladowanie)
+	ZaladujTabele
+	
+	
+End Sub
+
+
+
+Public Sub ZaladujTabele()
+	
 	TabelaLadowanie.SetData(DaneLadowania)
-    
-	' --- PAKOWANIE DANYCH DO TABELI 2: ROZŁADOWANIE ---
-	Dim DaneRozladowania As List
-	DaneRozladowania.Initialize
-	For i = 0 To CzasR.Size - 1
-		DaneRozladowania.Add(Array As Object(i + 1, NumberFormat(CzasR.Get(i), 1, 2), NumberFormat(NapiecieR.Get(i), 1, 3)))
-	Next
 	TabelaRozladowanie.SetData(DaneRozladowania)
 End Sub
+
+
+Public Sub DanePelne() As Boolean
+	If DaneLadowania.Size > 0 And DaneRozladowania.Size > 0 Then
+		Return True
+	End If
+	
+	Return False
+End Sub
+
+
+
+Public Sub DodajDaneLadowania(CzasL As Double, NapiecieL As Double)
+	 
+	NumerPomiarL = NumerPomiarL + 1
+	DaneLadowania.Add(Array As Object(NumerPomiarL, NumberFormat(CzasL, 1, 2), NumberFormat(NapiecieL, 1, 3)))
+
+End Sub
+
+
+
+
+Public Sub DodajDaneRozladowania(CzasR As Double, NapiecieR As Double)
+	NumerPomiarR = NumerPomiarR + 1
+	DaneRozladowania.Add(Array As Object(NumerPomiarR, NumberFormat(CzasR, 1, 2), NumberFormat(NapiecieR, 1, 3)))
+
+End Sub
+
+
+
+
+
+
+
+
+
+
 
 Private Sub PobierzBtn_Click
 	' 1. Inicjalizacja budowniczego tekstu
@@ -128,6 +173,9 @@ Private Sub PobierzBtn_Click
 		Log(LastException)
 	End Try
 End Sub
+
+
+
 
 
 
