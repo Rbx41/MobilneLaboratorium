@@ -127,6 +127,7 @@ Sub mqtt_Connected (Success As Boolean)
 		Log("Suckes")
 		If EkranLogowania.IsInitialized Then EkranLogowania.UstawStatus("Połączono!")
 		mqtt.Subscribe("lab/#", 0)
+		mqtt.Subscribe("lab/temperatura_wilg/ilosc", 0)
 		If CelLogowania <> "" Then
 			B4XPages.ShowPage(CelLogowania)
 		End If

@@ -15,12 +15,16 @@ Sub Class_Globals
 	Private btnWlacz As Button
 	Private btnWylacz As Button
 	
-	Private ListaWykresow As CustomListView
-	Private WykresSzablon As xChart
-	Private DynamiczneWykresy As List
+	Private ListaWidokow As CustomListView
 	
-	Private DynamiczneWykresy As List	
+	Private DynamiczneWykresyTemp As List	
+	Private DynamiczneWykresyWilg As List
+	
+	
+	
 	Private CzyStronaZbudowana As Boolean
+	
+	Private WykresSzablon As xChart
 	
 	Private OstatnieCzasy As List
 	
@@ -40,17 +44,18 @@ End Sub
 ' sudo ss -tn state established sport = :1883 Pokazuje dane o połączonych urządzeniach 
 
 'ip neigh show    Adresy ip i mac polaczonych urzadzen
-
-Public Sub Initialize As Object
-	DynamiczneWykresy.Initialize
-End Sub
+'
+'Public Sub Initialize As Object
+'	DynamiczneWykresy.Initialize
+'End Sub
 
 Private Sub B4XPage_Created (Root1 As B4XView)
 	Root = Root1
 
 	Root.LoadLayout("TempHum")
 	B4XPages.SetTitle(Me, "Pomiary Temperatury")
-    DynamiczneWykresy.Initialize
+    DynamiczneWykresyTemp.Initialize
+	DynamiczneWykresyWilg.Initialize
 		
 End Sub
 
@@ -80,14 +85,14 @@ End Sub
 Public Sub UtworzNowyWykresTemp()
 	
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
-	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWykresow.AsView.Width, 400dip)
+	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
 	PanelKontener.LoadLayout("OknoWykresu")
     
 	Dim NowyWykres As xChart = WykresSzablon
 	Dim SterownikWykresu As ChartController
 	
 	
-	Dim nr As String = DynamiczneWykresy.Size
+	Dim nr As String = DynamiczneWykresyTemp.Size
 	SterownikWykresu.Initialize ("Pomiar temperatury nr "&nr,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Temperatura", xui.Color_Red)
 	SterownikWykresu.UstawPrzedzialOsiY(10,45.0)
@@ -97,9 +102,9 @@ Public Sub UtworzNowyWykresTemp()
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
 
-    
-	DynamiczneWykresy.Add(SterownikWykresu)
-	ListaWykresow.Add(PanelKontener, NowyWykres)
+	DynamiczneWykresyTemp.Add(SterownikWykresu)
+	ListaWidokow.Add(PanelKontener, NowyWykres)
+	
 End Sub
 
 
@@ -109,14 +114,14 @@ End Sub
 Public Sub UtworzNowyWykresWilg()
 	
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
-	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWykresow.AsView.Width, 400dip)
+	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
 	PanelKontener.LoadLayout("OknoWykresu")
     
 	Dim NowyWykres As xChart = WykresSzablon
 	Dim SterownikWykresu As ChartController
 	
 	
-	Dim nr As String = DynamiczneWykresy.Size
+	Dim nr As String = DynamiczneWykresyWilg.Size
 	SterownikWykresu.Initialize ("Pomiar wilgoci nr "&nr,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Wilgoc", xui.Color_Red)
 	SterownikWykresu.UstawPrzedzialOsiY(30,100.0)
@@ -127,37 +132,75 @@ Public Sub UtworzNowyWykresWilg()
 	SterownikWykresu.CzestPodzialki = 100
 	
     
-	DynamiczneWykresy.Add(SterownikWykresu)
-	ListaWykresow.Add(PanelKontener, NowyWykres)
+	DynamiczneWykresyWilg.Add(SterownikWykresu)
+	ListaWidokow.Add(PanelKontener, NowyWykres)
+	
 End Sub
 
 
 
+Public Sub PobierzLiczbeUrzadzen
+	Dim MainScreen As B4XMainPage = B4XPages.MainPage
+	
+	
+	Dim cmd As String = "GET_COUNT"
+	MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmd.GetBytes("UTF8"))
+
+End Sub
 
 
 Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
+'	If CzyStronaZbudowana = False Then Return
+'    
+'
+'	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
+'
+'	
+'	If Topic = "lab/temperatura_wilg/lista_urzadzen" Then
+'		If msg.Trim = "" Then
+'			Log("Brak zarejestrowanych urządzeń w bazie.")
+'			Return
+'		End If
+'		
+'		Dim TablicaID() As String = Regex.Split(",", msg)
+'		
+'		Dim ListaUrzadzen As List
+'		ListaUrzadzen.Initialize
+'		
+'		For Each ID As String In TablicaID
+'			ListaUrzadzen.Add(ID)
+'			Log("Wyciągnięte ID: " & ID)
+'		Next
+'		
+'	End If
+
 	If CzyStronaZbudowana = False Then Return
     
-
 	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
 
-	
+	' 1. Odbiór listy identyfikatorów
 	If Topic = "lab/temperatura_wilg/lista_urzadzen" Then
 		If msg.Trim = "" Then
 			Log("Brak zarejestrowanych urządzeń w bazie.")
 			Return
 		End If
-		
+        
 		Dim TablicaID() As String = Regex.Split(",", msg)
-		
 		Dim ListaUrzadzen As List
 		ListaUrzadzen.Initialize
-		
+        
 		For Each ID As String In TablicaID
 			ListaUrzadzen.Add(ID)
 			Log("Wyciągnięte ID: " & ID)
 		Next
-		
+
+		' 2. Odbiór liczby aktywnych urządzeń (ONLINE)
+	Else If Topic = "lab/temperatura_wilg/ilosc" Then
+		Dim LiczbaAktywnych As Int = msg.Trim
+		Log("Liczba aktywnych urządzeń w sieci: " & LiczbaAktywnych)
+        
+		' Przykład aktualizacji widoku w B4A:
+		' lblIloscUrzadzen.Text = "Aktywne moduły: " & LiczbaAktywnych
 	End If
 	
 	
