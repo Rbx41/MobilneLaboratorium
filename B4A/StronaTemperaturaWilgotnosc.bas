@@ -17,6 +17,8 @@ Sub Class_Globals
 	
 	Private ListaWidokow As CustomListView
 	
+	Private Urzadzenia As Map
+	
 	Private DynamiczneWykresyTemp As List	
 	Private DynamiczneWykresyWilg As List
 	
@@ -45,9 +47,11 @@ End Sub
 
 'ip neigh show    Adresy ip i mac polaczonych urzadzen
 '
-'Public Sub Initialize As Object
-'	DynamiczneWykresy.Initialize
-'End Sub
+Public Sub Initialize As Object
+	DynamiczneWykresyTemp.Initialize
+	DynamiczneWykresyWilg.Initialize
+	
+End Sub
 
 Private Sub B4XPage_Created (Root1 As B4XView)
 	Root = Root1
@@ -67,12 +71,15 @@ Private Sub B4XPage_Appear
 	CzyStronaZbudowana = True
 	
 	
-	UtworzNowyWykresTemp
-	UtworzNowyWykresWilg
+'	UtworzNowyWykresTemp
+'	UtworzNowyWykresWilg
 	
 	
 	Log("Strona sie pojawila ")
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
+	
+	PobierzStatusyUrzadzen
+	
 	MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", "GET_DEVICES".GetBytes("UTF8")) ' Sprawdz liczbe polaczen
 	
 '	Stoper.Initialize("Tykniecie", 10000)
@@ -82,7 +89,7 @@ End Sub
 
 
 
-Public Sub UtworzNowyWykresTemp()
+Public Sub UtworzNowyWykresTemp(mac As String)
 	
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
 	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
@@ -93,7 +100,7 @@ Public Sub UtworzNowyWykresTemp()
 	
 	
 	Dim nr As String = DynamiczneWykresyTemp.Size
-	SterownikWykresu.Initialize ("Pomiar temperatury nr "&nr,  NowyWykres)
+	SterownikWykresu.Initialize ("Pomiar temperatury adres urzadzenia "&mac,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Temperatura", xui.Color_Red)
 	SterownikWykresu.UstawPrzedzialOsiY(10,45.0)
 	SterownikWykresu.UstawNazwyOsi("Czas [s]", "°C")
@@ -111,7 +118,7 @@ End Sub
 
 
 
-Public Sub UtworzNowyWykresWilg()
+Public Sub UtworzNowyWykresWilg(mac As String)
 	
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
 	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
@@ -122,7 +129,7 @@ Public Sub UtworzNowyWykresWilg()
 	
 	
 	Dim nr As String = DynamiczneWykresyWilg.Size
-	SterownikWykresu.Initialize ("Pomiar wilgoci nr "&nr,  NowyWykres)
+	SterownikWykresu.Initialize ("Pomiar wilgoci adres urzadzenia "&mac,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Wilgoc", xui.Color_Red)
 	SterownikWykresu.UstawPrzedzialOsiY(30,100.0)
 	SterownikWykresu.UstawNazwyOsi("Czas [s]", "%")
@@ -149,63 +156,159 @@ Public Sub PobierzLiczbeUrzadzen
 End Sub
 
 
+
+Public Sub PobierzStatusyUrzadzen
+	Dim MainScreen As B4XMainPage = B4XPages.MainPage
+	If MainScreen.mqtt.Connected Then
+		Dim cmd() As Byte = "GET_STATUSES".GetBytes("utf8")
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmd)
+		Log("B4A: Wysłano żądanie GET_STATUSES do skryptu.")
+	Else
+		Log("B4A: Brak połączenia z brokerem MQTT!")
+	End If
+End Sub
+
+
+Public Sub PobierzHistorieUrzadzenia(macAdres As String, limitPunktow As Int)
+	Dim MainScreen As B4XMainPage = B4XPages.MainPage
+	If MainScreen.mqtt.Connected Then
+		' Format komendy: GET_HISTORY:<MAC>:<LIMIT>
+		Dim cmd As String = "GET_HISTORY:" & macAdres & ":" & limitPunktow
+		Dim cmdBytes() As Byte = cmd.GetBytes("utf8")
+        
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmdBytes)
+		Log("B4A: Wysłano żądanie historii dla [" & macAdres & "], limit: " & limitPunktow)
+	Else
+		Log("B4A: Brak połączenia z brokerem MQTT!")
+	End If
+End Sub
+
+
+
 Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
-'	If CzyStronaZbudowana = False Then Return
-'    
-'
-'	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
-'
-'	
-'	If Topic = "lab/temperatura_wilg/lista_urzadzen" Then
-'		If msg.Trim = "" Then
-'			Log("Brak zarejestrowanych urządzeń w bazie.")
-'			Return
-'		End If
-'		
-'		Dim TablicaID() As String = Regex.Split(",", msg)
-'		
-'		Dim ListaUrzadzen As List
-'		ListaUrzadzen.Initialize
-'		
-'		For Each ID As String In TablicaID
-'			ListaUrzadzen.Add(ID)
-'			Log("Wyciągnięte ID: " & ID)
-'		Next
-'		
-'	End If
+'	Podczas odpalenia aplikacji program pobiera słownik mac : status
+'	W kolejnum kroku:
+'	Nasłuchuje na temat:
+' 	-statusów urządzeń online/ofline
+'	-danych pomiarowych konkretnych urzadzen
+'	-zarejestrowaniu nowego urzadzenia 
+
 
 	If CzyStronaZbudowana = False Then Return
     
 	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
 
-	' 1. Odbiór listy identyfikatorów
-	If Topic = "lab/temperatura_wilg/lista_urzadzen" Then
-		If msg.Trim = "" Then
-			Log("Brak zarejestrowanych urządzeń w bazie.")
-			Return
+
+	
+	If Topic = "lab/temperatura_wilg/zarejestrowane_urzadzenia" Then
+		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
+		Log("=== B4A: ODEBRANO SLOWNIK STATUSOW ===")
+		Log(jsonStr)
+            
+		Dim parser As JSONParser
+		parser.Initialize(jsonStr)
+		
+'		Dim SlownikStatusow As Map = parser.NextObject
+		Dim Urzadzenia As Map = parser.NextObject
+
+		' Wypisujemy zawartość słownika do okna Logów
+		For Each mac As String In Urzadzenia.Keys
+			Dim stan As String = Urzadzenia.Get(mac)
+			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
+			PobierzHistorieUrzadzenia(mac, 500)
+		Next
+		
+		
+		Return
+	End If
+
+
+	Dim PrefiksStatus As String = "lab/temperatura_wilg/status/"
+	If Topic.StartsWith(PrefiksStatus) Then
+		Log("Informacje o statusie")
+		' Wycięcie adresu MAC z tematu MQTT
+		Dim macAdres As String = Topic.SubString(PrefiksStatus.Length).Trim
+		Dim stan As String = BytesToString(Payload, 0, Payload.Length, "utf8").Trim.ToLowerCase
+        
+		' Sprawdzenie poprzedniego stanu, aby nie dublować powiadomień
+		Dim poprzedniStan As String = ""
+		If Urzadzenia.IsInitialized And Urzadzenia.ContainsKey(macAdres) Then
+			poprzedniStan = Urzadzenia.Get(macAdres)
 		End If
         
-		Dim TablicaID() As String = Regex.Split(",", msg)
-		Dim ListaUrzadzen As List
-		ListaUrzadzen.Initialize
+		' Aktualizacja stanu w lokalnej pamięci telefonu
+		If Urzadzenia.IsInitialized = False Then Urzadzenia.Initialize
+		Urzadzenia.Put(macAdres, stan)
         
-		For Each ID As String In TablicaID
-			ListaUrzadzen.Add(ID)
-			Log("Wyciągnięte ID: " & ID)
-		Next
+		' Wyświetlenie odpowiedniego powiadomienia na telefonie
+		If stan = "online" Then
+			Log(">>> POWIADOMIENIE: Urządzenie [" & macAdres & "] połączyło się z siecią!")
+			ToastMessageShow("Węzeł [" & macAdres & "] jest ONLINE", False)
+            
+		Else If stan = "offline" Then
+			Log(">>> POWIADOMIENIE: Urządzenie [" & macAdres & "] rozłączone (LWT)!")
+			' Dłuższy komunikat Toast dla zdarzenia awaryjnego/rozłączenia
+			ToastMessageShow("UWAGA: Stacja [" & macAdres & "] przeszła w tryb OFFLINE!", True)
+		End If
+        
+		Return
+	End If
 
-		' 2. Odbiór liczby aktywnych urządzeń (ONLINE)
-	Else If Topic = "lab/temperatura_wilg/ilosc" Then
-		Dim LiczbaAktywnych As Int = msg.Trim
-		Log("Liczba aktywnych urządzeń w sieci: " & LiczbaAktywnych)
+	' =========================================================================
+	' 3. CYKLICZNE POMIARY TELEMETRYCZNE Z KONKRETNEGO URZĄDZENIA
+	' =========================================================================
+	Dim PrefiksPomiary As String = "lab/temperatura_wilg/pomiary/"
+	If Topic.StartsWith(PrefiksPomiary) Then
+		Dim macAdres As String = Topic.SubString(PrefiksPomiary.Length).Trim
+		Dim daneStr As String = BytesToString(Payload, 0, Payload.Length, "utf8").Trim
         
-		' Przykład aktualizacji widoku w B4A:
-		' lblIloscUrzadzen.Text = "Aktywne moduły: " & LiczbaAktywnych
+		' Jeśli pomiar przyszedł od urządzenia, które figurowało jako offline, automatycznie oznacz je jako online
+		If Urzadzenia.IsInitialized Then
+			If Urzadzenia.GetDefault(macAdres, "offline") <> "online" Then
+				Urzadzenia.Put(macAdres, "online")
+			End If
+		End If
+        
+		Log("B4A Pomiar -> [" & macAdres & "]: " & daneStr)
+        
+		' Tutaj dopisujemy dane do wykresu xChart:
+		' np. PrzekazPomiarDoWykresu(macAdres, daneStr)
+		Return
+	End If
+	
+	
+	Dim PrefiksHistoria As String = "lab/temperatura_wilg/historia/"
+	If Topic.StartsWith(PrefiksHistoria) Then
+		Dim macAdres As String = Topic.SubString(PrefiksHistoria.Length).Trim
+		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
+        
+		Log("=== B4A: ODEBRANO HISTORIĘ DLA URZĄDZENIA [" & macAdres & "] ===")
+		UtworzNowyWykresTemp(mac)
+		UtworzNowyWykresWilg(mac)
+		
+        
+		Dim parser As JSONParser
+		parser.Initialize(jsonStr)
+		Dim listaPunktow As List = parser.NextArray
+        
+		Log("Wczytano próbek z bazy: " & listaPunktow.Size)
+        
+		' Przetwarzanie punktów i zasilenie wykresu xChart:
+		For Each pomiar As Map In listaPunktow
+			Dim temp As Double = pomiar.Get("t")
+			Dim wilg As Double = pomiar.Get("h")
+			Dim czas_s As Double = pomiar.Get("c")
+            
+			' Tutaj przekazujesz dane bezpośrednio do instancji xChart / kontrolera wykresu:
+			' SterownikWykresu.DodajPunkt(czas_s, temp)
+		Next
+        
+		ToastMessageShow("Wczytano historię: " & listaPunktow.Size & " punktów", False)
+		Return
 	End If
 	
 	
 End Sub
-
 
 
 
