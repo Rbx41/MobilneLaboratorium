@@ -40,12 +40,12 @@ End Sub
 Public Sub Initialize (TytulWykresu_ As String ,WykresZWidoku As xChart)
 	TytulWykresu = TytulWykresu_ 
 	Wykres = WykresZWidoku
+	Wykres.ChartType = "LINE"
+	Wykres.ChartBackgroundColor = xui.Color_RGB(30, 30, 235)
 	LiczbaKrzywych = 0
 	Wykres.Title = TytulWykresu_
 	Krzywe.Initialize	
 End Sub
-
-
 
 
 
@@ -57,6 +57,11 @@ Public Sub DodajKrzywa(Etykieta_ As String ,Kolor_ As Int)
 	Wykres.AddLine(Etykieta_, Kolor_)
 End Sub
 
+
+'Public Sub UstawRozmarCzcionkiTytulu(Rozmiar As Int)
+'	Wykres.
+'	
+'End Sub
 
 
 Public Sub UstawPrzedzialOsiX(XMin_ As Double, XMax_ As Double)
@@ -105,6 +110,11 @@ Public Sub DodajPunkty(Czas As Double, Punkty() As Double )
 	End If
 
 	
+End Sub
+
+
+Public Sub DodajPunkt(Czas As Double, Wartosc As Double)
+	DodajPunkty(Czas, Array As Double(Wartosc))
 End Sub
 
 

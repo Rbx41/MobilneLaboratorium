@@ -14,13 +14,12 @@ Sub Class_Globals
 	Private btnNowyPomiar As Button
 	Private btnWlacz As Button
 	Private btnWylacz As Button
-	
-	Private ListaWidokow As CustomListView
+
 	
 	Private Urzadzenia As Map
 	
-	Private DynamiczneWykresyTemp As List	
-	Private DynamiczneWykresyWilg As List
+	Private WykresyTemp As Map	
+	Private WykresyWilg As Map
 	
 	
 	
@@ -34,6 +33,7 @@ Sub Class_Globals
 	
 	
 
+	Private ListaWykresow As CustomListView
 End Sub
 
 
@@ -48,8 +48,11 @@ End Sub
 'ip neigh show    Adresy ip i mac polaczonych urzadzen
 '
 Public Sub Initialize As Object
-	DynamiczneWykresyTemp.Initialize
-	DynamiczneWykresyWilg.Initialize
+	WykresyTemp.Initialize
+	WykresyWilg.Initialize
+	Urzadzenia.Initialize
+
+	
 	
 End Sub
 
@@ -58,9 +61,16 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 
 	Root.LoadLayout("TempHum")
 	B4XPages.SetTitle(Me, "Pomiary Temperatury")
-    DynamiczneWykresyTemp.Initialize
-	DynamiczneWykresyWilg.Initialize
-		
+	
+
+	
+    WykresyTemp.Initialize
+	WykresyWilg.Initialize
+	
+'	ListaWykresow.AsView.ScrollViewOffsetY = 500
+	
+
+	
 End Sub
 
 
@@ -69,18 +79,18 @@ End Sub
 Private Sub B4XPage_Appear
 
 	CzyStronaZbudowana = True
-	
-	
-'	UtworzNowyWykresTemp
-'	UtworzNowyWykresWilg
-	
-	
+
 	Log("Strona sie pojawila ")
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	
 	PobierzStatusyUrzadzen
 	
 	MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", "GET_DEVICES".GetBytes("UTF8")) ' Sprawdz liczbe polaczen
+	
+
+
+	
+	
 	
 '	Stoper.Initialize("Tykniecie", 10000)
 
@@ -89,18 +99,23 @@ End Sub
 
 
 
-Public Sub UtworzNowyWykresTemp(mac As String)
-	
+Public Sub UtworzNowyWykresTemp(mac As String, status As String)
+
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
-	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
+	
+	
+'	PanelKontener.SetTextAlignment("TOP","CENTER")
+	
+	
+	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWykresow.AsView.Width, 350dip)
 	PanelKontener.LoadLayout("OknoWykresu")
+
     
+	
 	Dim NowyWykres As xChart = WykresSzablon
 	Dim SterownikWykresu As ChartController
-	
-	
-	Dim nr As String = DynamiczneWykresyTemp.Size
-	SterownikWykresu.Initialize ("Pomiar temperatury adres urzadzenia "&mac,  NowyWykres)
+	Dim nr As String = WykresyTemp.Size
+	SterownikWykresu.Initialize ("adres urzadzenia: "&mac&" stan: "&status,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Temperatura", xui.Color_Red)
 	SterownikWykresu.UstawPrzedzialOsiY(10,45.0)
 	SterownikWykresu.UstawNazwyOsi("Czas [s]", "°C")
@@ -109,38 +124,38 @@ Public Sub UtworzNowyWykresTemp(mac As String)
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
 
-	DynamiczneWykresyTemp.Add(SterownikWykresu)
-	ListaWidokow.Add(PanelKontener, NowyWykres)
+	WykresyTemp.Put(mac,SterownikWykresu)
+	ListaWykresow.Add(PanelKontener, NowyWykres)
 	
+
 End Sub
 
 
 
 
 
-Public Sub UtworzNowyWykresWilg(mac As String)
+Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 	
 	Dim PanelKontener As B4XView = xui.CreatePanel("")
-	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWidokow.AsView.Width, 400dip)
+	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWykresow.AsView.Width, 350dip)
 	PanelKontener.LoadLayout("OknoWykresu")
+	
     
 	Dim NowyWykres As xChart = WykresSzablon
 	Dim SterownikWykresu As ChartController
-	
-	
-	Dim nr As String = DynamiczneWykresyWilg.Size
-	SterownikWykresu.Initialize ("Pomiar wilgoci adres urzadzenia "&mac,  NowyWykres)
+	Dim nr As String = WykresyWilg.Size
+	SterownikWykresu.Initialize ("adres urzadzenia: "&mac&" stan: "&status,  NowyWykres)
 	SterownikWykresu.DodajKrzywa("Wilgoc", xui.Color_Red)
-	SterownikWykresu.UstawPrzedzialOsiY(30,100.0)
+	SterownikWykresu.UstawPrzedzialOsiY(0,100.0)
 	SterownikWykresu.UstawNazwyOsi("Czas [s]", "%")
-	SterownikWykresu.UstawAutoSkalowanie(False)
+	SterownikWykresu.UstawAutoSkalowanie(True)
 	SterownikWykresu.CzestRys = 1
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
 	
     
-	DynamiczneWykresyWilg.Add(SterownikWykresu)
-	ListaWidokow.Add(PanelKontener, NowyWykres)
+	WykresyWilg.Put(mac,SterownikWykresu)
+	ListaWykresow.Add(PanelKontener, NowyWykres)
 	
 End Sub
 
@@ -209,12 +224,16 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		parser.Initialize(jsonStr)
 		
 '		Dim SlownikStatusow As Map = parser.NextObject
-		Dim Urzadzenia As Map = parser.NextObject
+		Urzadzenia = parser.NextObject
 
 		' Wypisujemy zawartość słownika do okna Logów
 		For Each mac As String In Urzadzenia.Keys
 			Dim stan As String = Urzadzenia.Get(mac)
 			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
+			Urzadzenia.Put(mac, stan)
+			UtworzNowyWykresTemp(mac, stan)
+			UtworzNowyWykresWilg(mac, stan)
+			
 			PobierzHistorieUrzadzenia(mac, 500)
 		Next
 		
@@ -263,13 +282,34 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		Dim daneStr As String = BytesToString(Payload, 0, Payload.Length, "utf8").Trim
         
 		' Jeśli pomiar przyszedł od urządzenia, które figurowało jako offline, automatycznie oznacz je jako online
-		If Urzadzenia.IsInitialized Then
-			If Urzadzenia.GetDefault(macAdres, "offline") <> "online" Then
-				Urzadzenia.Put(macAdres, "online")
+'		If Urzadzenia.IsInitialized Then
+'			If Urzadzenia.GetDefault(macAdres, "offline") <> "online" Then
+'				Urzadzenia.Put(macAdres, "online")
+'			End If
+'		End If
+'        
+'		Log("B4A Pomiar -> [" & macAdres & "]: " & daneStr)
+
+		Dim wartosci() As String = Regex.Split(",", daneStr)
+		If wartosci.Length >= 3 Then
+			Dim temp As Double = wartosci(0)
+			Dim wilg As Double = wartosci(1)
+			Dim czas_s As Double = wartosci(2)
+            
+			' Jeśli wykres dla tego urządzenia jeszcze nie istnieje, utwórz go
+			If WykresyTemp.ContainsKey(macAdres) = False Then
+				UtworzNowyWykresTemp(macAdres, "podlaczone")
+				UtworzNowyWykresWilg(macAdres, "podlaczone")
 			End If
+            
+			' Pobieramy właściwe sterowniki bezpośrednio po kluczu MAC:
+			Dim ctrlTemp As ChartController = WykresyTemp.Get(macAdres)
+			Dim ctrlWilg As ChartController = WykresyWilg.Get(macAdres)
+            
+			ctrlTemp.DodajPunkt(czas_s, temp)	
+			ctrlWilg.DodajPunkt(czas_s, wilg)
 		End If
-        
-		Log("B4A Pomiar -> [" & macAdres & "]: " & daneStr)
+		Return
         
 		' Tutaj dopisujemy dane do wykresu xChart:
 		' np. PrzekazPomiarDoWykresu(macAdres, daneStr)
@@ -283,8 +323,8 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
         
 		Log("=== B4A: ODEBRANO HISTORIĘ DLA URZĄDZENIA [" & macAdres & "] ===")
-		UtworzNowyWykresTemp(mac)
-		UtworzNowyWykresWilg(mac)
+'		UtworzNowyWykresTemp(macAdres)
+'		UtworzNowyWykresWilg(macAdres)
 		
         
 		Dim parser As JSONParser
@@ -300,7 +340,14 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			Dim czas_s As Double = pomiar.Get("c")
             
 			' Tutaj przekazujesz dane bezpośrednio do instancji xChart / kontrolera wykresu:
-			' SterownikWykresu.DodajPunkt(czas_s, temp)
+			Dim ctrlTemp As ChartController = WykresyTemp.Get(macAdres)
+			Dim ctrlWilg As ChartController = WykresyWilg.Get(macAdres)
+			
+			Log("wilg "&wilg)
+			
+			ctrlTemp.DodajPunkt(czas_s, temp)
+			ctrlWilg.DodajPunkt(czas_s, wilg)
+			
 		Next
         
 		ToastMessageShow("Wczytano historię: " & listaPunktow.Size & " punktów", False)
