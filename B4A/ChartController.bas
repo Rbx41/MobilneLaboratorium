@@ -88,6 +88,13 @@ Public Sub UstawPodTytul(Podtytul As String)
 	Wykres.Subtitle = Podtytul
 End Sub
 
+
+Public Sub UstawTytul(Tytul As String)
+	Log("WYKRES: "&Wykres&"  !!!!!!!")
+	Wykres.Title = Tytul
+	Wykres.DrawChart
+End Sub
+
 ' Wartośći w liscie muszą byc ustawione w parach (x1,y1) , (x2,y2)
 Public Sub DodajPunkty(Czas As Double, Punkty() As Double )
 	If Punkty.Length > LiczbaKrzywych Then

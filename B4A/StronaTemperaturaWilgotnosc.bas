@@ -110,9 +110,12 @@ Public Sub UtworzNowyWykresTemp(mac As String, status As String)
 	PanelKontener.SetLayoutAnimated(0, 0, 0, ListaWykresow.AsView.Width, 350dip)
 	PanelKontener.LoadLayout("OknoWykresu")
 
-    
+   
 	
 	Dim NowyWykres As xChart = WykresSzablon
+	
+	NowyWykres.Tag = mac & "_TEMP" 
+	
 	Dim SterownikWykresu As ChartController
 	Dim nr As String = WykresyTemp.Size
 	SterownikWykresu.Initialize ("adres urzadzenia: "&mac&" stan: "&status,  NowyWykres)
@@ -125,6 +128,7 @@ Public Sub UtworzNowyWykresTemp(mac As String, status As String)
 	SterownikWykresu.CzestPodzialki = 100
 
 	WykresyTemp.Put(mac,SterownikWykresu)
+	
 	ListaWykresow.Add(PanelKontener, NowyWykres)
 	
 
@@ -142,6 +146,9 @@ Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 	
     
 	Dim NowyWykres As xChart = WykresSzablon
+	
+	NowyWykres.Tag = mac & "_WILG"
+	
 	Dim SterownikWykresu As ChartController
 	Dim nr As String = WykresyWilg.Size
 	SterownikWykresu.Initialize ("adres urzadzenia: "&mac&" stan: "&status,  NowyWykres)
@@ -155,9 +162,41 @@ Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 	
     
 	WykresyWilg.Put(mac,SterownikWykresu)
+	
 	ListaWykresow.Add(PanelKontener, NowyWykres)
 	
 End Sub
+
+
+Private Sub ListaWykresow_ItemClick (Index As Int, Value As Object)
+	Dim identyfikator As String = Value
+	Log("Kliknięto wiersz listy nr: " & Index & " | ID: " & identyfikator)
+End Sub
+
+
+Private Sub WykresSzablon_CursorTouch (Action As Int, CursorPointIndex As Int)
+	' 0 to natywne ACTION_DOWN (moment przyłożenia palca do ekranu)
+	' 2 to ACTION_MOVE (przesuwanie palca)
+	' 1 to ACTION_UP (oderwanie palca)
+	If Action = 0 Then
+		Dim kliknietyWykres As xChart = Sender
+		Dim identyfikator As String = kliknietyWykres.Tag
+        
+		Log("Dotknięto wykresu o ID: " & identyfikator & " | Indeks próbki: " & CursorPointIndex)
+		ToastMessageShow("Dotknięto: " & identyfikator, False)
+        
+		If identyfikator.EndsWith("_TEMP") Then
+			Dim mac As String = identyfikator.Replace("_TEMP", "")
+			Log("Wybrano temperaturę dla: " & mac)
+		Else If identyfikator.EndsWith("_WILG") Then
+			Dim mac As String = identyfikator.Replace("_WILG", "")
+			Log("Wybrano wilgotność dla: " & mac)
+		End If
+	End If
+End Sub
+
+
+
 
 
 
@@ -234,7 +273,7 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			UtworzNowyWykresTemp(mac, stan)
 			UtworzNowyWykresWilg(mac, stan)
 			
-			PobierzHistorieUrzadzenia(mac, 500)
+			PobierzHistorieUrzadzenia(mac, 200)
 		Next
 		
 		
@@ -253,12 +292,33 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		Dim poprzedniStan As String = ""
 		If Urzadzenia.IsInitialized And Urzadzenia.ContainsKey(macAdres) Then
 			poprzedniStan = Urzadzenia.Get(macAdres)
+		Else
+			Return
 		End If
         
 		' Aktualizacja stanu w lokalnej pamięci telefonu
 		If Urzadzenia.IsInitialized = False Then Urzadzenia.Initialize
 		Urzadzenia.Put(macAdres, stan)
         
+		Dim WykresTemp As ChartController = WykresyTemp.Get(macAdres)
+		Dim WykresWilg As ChartController = WykresyWilg.Get(macAdres)
+		
+		If WykresyTemp.IsInitialized And WykresyWilg.IsInitialized Then
+			Log("Wykresy zainicjowane")
+		Else
+			Log("Wykresy zainicjowane !!!! Może wywalić błąd !!!!!!!!!!!")
+		End If
+		
+		Log(macAdres)
+		Log(stan)
+		
+		WykresTemp.UstawTytul("adres urzadzenia: "&macAdres&" stan: "&stan)
+		WykresWilg.UstawTytul("adres urzadzenia: "&macAdres&" stan: "&stan)
+		
+		
+		
+		
+		
 		' Wyświetlenie odpowiedniego powiadomienia na telefonie
 		If stan = "online" Then
 			Log(">>> POWIADOMIENIE: Urządzenie [" & macAdres & "] połączyło się z siecią!")
@@ -343,8 +403,6 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			Dim ctrlTemp As ChartController = WykresyTemp.Get(macAdres)
 			Dim ctrlWilg As ChartController = WykresyWilg.Get(macAdres)
 			
-			Log("wilg "&wilg)
-			
 			ctrlTemp.DodajPunkt(czas_s, temp)
 			ctrlWilg.DodajPunkt(czas_s, wilg)
 			
@@ -411,3 +469,4 @@ Private Sub btnWylacz_Click
 		xui.MsgboxAsync("Zatrzymano pomiary.", "Status")
 	End If
 End Sub
+
