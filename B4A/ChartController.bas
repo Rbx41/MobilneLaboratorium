@@ -47,6 +47,11 @@ Public Sub Initialize (TytulWykresu_ As String ,WykresZWidoku As xChart)
 	Krzywe.Initialize	
 End Sub
 
+Public Sub WezWykres As xChart
+	Return Wykres
+End Sub
+
+
 
 
 Public Sub DodajKrzywa(Etykieta_ As String ,Kolor_ As Int)
@@ -90,7 +95,6 @@ End Sub
 
 
 Public Sub UstawTytul(Tytul As String)
-	Log("WYKRES: "&Wykres&"  !!!!!!!")
 	Wykres.Title = Tytul
 	Wykres.DrawChart
 End Sub

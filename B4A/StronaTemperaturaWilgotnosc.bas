@@ -31,6 +31,9 @@ Sub Class_Globals
 	
 	Private Stoper As Timer
 	
+	Dim OstatniKliknietyWykres_1 As xChart
+	Dim OstatniKliknietyWykres_2 As xChart
+	
 	
 
 	Private ListaWykresow As CustomListView
@@ -168,34 +171,60 @@ Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 End Sub
 
 
-Private Sub ListaWykresow_ItemClick (Index As Int, Value As Object)
-	Dim identyfikator As String = Value
-	Log("Kliknięto wiersz listy nr: " & Index & " | ID: " & identyfikator)
-End Sub
 
 
 Private Sub WykresSzablon_CursorTouch (Action As Int, CursorPointIndex As Int)
-	' 0 to natywne ACTION_DOWN (moment przyłożenia palca do ekranu)
-	' 2 to ACTION_MOVE (przesuwanie palca)
-	' 1 to ACTION_UP (oderwanie palca)
-	If Action = 0 Then
-		Dim kliknietyWykres As xChart = Sender
-		Dim identyfikator As String = kliknietyWykres.Tag
+    If Action = 0 Then
+		
+        Dim kliknietyWykres As xChart = Sender
+        Dim identyfikator As String = kliknietyWykres.Tag
         
-		Log("Dotknięto wykresu o ID: " & identyfikator & " | Indeks próbki: " & CursorPointIndex)
-		ToastMessageShow("Dotknięto: " & identyfikator, False)
+        Dim mac As String = ""
+        Dim BlizniaczyKontroler As ChartController
+		
         
-		If identyfikator.EndsWith("_TEMP") Then
-			Dim mac As String = identyfikator.Replace("_TEMP", "")
-			Log("Wybrano temperaturę dla: " & mac)
-		Else If identyfikator.EndsWith("_WILG") Then
-			Dim mac As String = identyfikator.Replace("_WILG", "")
-			Log("Wybrano wilgotność dla: " & mac)
-		End If
-	End If
+'        ' 1. Rozpoznajemy typ i pobieramy parę z przeciwnej mapy:
+        If identyfikator.EndsWith("_TEMP") Then
+            mac = identyfikator.Replace("_TEMP", "")
+			Log(mac)
+            If WykresyWilg.IsInitialized And WykresyWilg.ContainsKey(mac) Then
+                BlizniaczyKontroler = WykresyWilg.Get(mac)
+            End If
+		
+            
+        Else If identyfikator.EndsWith("_WILG") Then
+            mac = identyfikator.Replace("_WILG", "")
+			Log(mac)
+            If WykresyTemp.IsInitialized And WykresyTemp.ContainsKey(mac) Then
+                BlizniaczyKontroler = WykresyTemp.Get(mac)
+            End If
+
+        End If
+
+        ' 2. Reset zaznaczenia poprzedniego wykresu
+		If OstatniKliknietyWykres_1.IsInitialized And OstatniKliknietyWykres_2.IsInitialized Then
+			OstatniKliknietyWykres_1.DrawOuterFrame = False
+			OstatniKliknietyWykres_1.DrawChart
+			
+			OstatniKliknietyWykres_2.DrawOuterFrame = False
+			OstatniKliknietyWykres_2.DrawChart
+        End If
+
+        ' 3. Zaznaczenie klikniętego wykresu
+        kliknietyWykres.DrawOuterFrame = True
+        kliknietyWykres.DrawChart
+        OstatniKliknietyWykres_1 = kliknietyWykres
+		
+		Dim BlizniaczyWykres As xChart = BlizniaczyKontroler.WezWykres
+		BlizniaczyWykres.DrawOuterFrame = True
+		BlizniaczyWykres.DrawChart
+		OstatniKliknietyWykres_2 = BlizniaczyWykres
+  
+        
+    End If
+	
+	
 End Sub
-
-
 
 
 
@@ -254,31 +283,63 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 
 
 	
+'	If Topic = "lab/temperatura_wilg/zarejestrowane_urzadzenia" Then
+'		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
+'		Log("=== B4A: ODEBRANO SLOWNIK STATUSOW ===")
+'		Log(jsonStr)
+'            
+'		Dim parser As JSONParser
+'		parser.Initialize(jsonStr)
+'		
+''		Dim SlownikStatusow As Map = parser.NextObject
+'		Urzadzenia = parser.NextObject
+'
+'		' Wypisujemy zawartość słownika do okna Logów
+'		For Each mac As String In Urzadzenia.Keys
+'			Dim stan As String = Urzadzenia.Get(mac)
+'			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
+'			Urzadzenia.Put(mac, stan)
+'			UtworzNowyWykresTemp(mac, stan)
+'			UtworzNowyWykresWilg(mac, stan)
+'			
+'			PobierzHistorieUrzadzenia(mac, 200)
+'		Next
+'		
+'		
+'		Return
+'	End If
+
+
 	If Topic = "lab/temperatura_wilg/zarejestrowane_urzadzenia" Then
 		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
 		Log("=== B4A: ODEBRANO SLOWNIK STATUSOW ===")
 		Log(jsonStr)
-            
+        
 		Dim parser As JSONParser
 		parser.Initialize(jsonStr)
-		
-'		Dim SlownikStatusow As Map = parser.NextObject
 		Urzadzenia = parser.NextObject
 
-		' Wypisujemy zawartość słownika do okna Logów
 		For Each mac As String In Urzadzenia.Keys
 			Dim stan As String = Urzadzenia.Get(mac)
 			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
-			Urzadzenia.Put(mac, stan)
-			UtworzNowyWykresTemp(mac, stan)
-			UtworzNowyWykresWilg(mac, stan)
-			
+        
+			' Twórz wykresy TYLKO jeśli jeszcze nie istnieją na liście
+			If WykresyTemp.ContainsKey(mac) = False Then
+				UtworzNowyWykresTemp(mac, stan)
+				UtworzNowyWykresWilg(mac, stan)
+			Else
+				' Jeśli już istnieją, zaktualizuj jedynie ich nagłówki
+				Dim ctrlT As ChartController = WykresyTemp.Get(mac)
+				Dim ctrlW As ChartController = WykresyWilg.Get(mac)
+				ctrlT.UstawTytul("adres urzadzenia: " & mac & " stan: " & stan)
+				ctrlW.UstawTytul("adres urzadzenia: " & mac & " stan: " & stan)
+			End If
+        
 			PobierzHistorieUrzadzenia(mac, 200)
 		Next
-		
-		
 		Return
 	End If
+
 
 
 	Dim PrefiksStatus As String = "lab/temperatura_wilg/status/"
@@ -431,7 +492,19 @@ Private Sub btnNowyPomiar_Click
 		' 1. Wysyłamy tajną komendę do Malinki, żeby "wyzerowała" plik CSV
 		Dim MainScreen As B4XMainPage = B4XPages.MainPage
 		If MainScreen.mqtt.Connected Then
-			MainScreen.mqtt.Publish("lab/temperatura/sterowanie", "RESET".GetBytes("UTF8"))
+			
+			Dim id As String  = OstatniKliknietyWykres_1.Tag
+			Dim mac As String = id.Replace("_WILG", "")
+			Dim mac As String = id.Replace("_TEMP", "")
+			
+			Dim ctrlTemp As ChartController = WykresyTemp.Get(mac)
+			Dim ctrlWilg As ChartController = WykresyWilg.Get(mac)
+			
+			ctrlTemp.ResetujWykres
+			ctrlWilg.ResetujWykres
+			
+			
+			MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/"&mac, "RESET".GetBytes("UTF8"))
 			Log("Wysłano komendę RESET do miniserwera!")
 		End If
         
@@ -455,7 +528,11 @@ Private Sub btnWlacz_Click
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	If MainScreen.mqtt.Connected Then
 		' Wysyłamy komendę START do NodeMCU
-		MainScreen.mqtt.Publish("lab/temperatura/sterowanie", "START".GetBytes("UTF8"))
+		Dim id As String  = OstatniKliknietyWykres_1.Tag
+		Dim mac As String = id.Replace("_WILG", "")
+		Dim mac As String = id.Replace("_TEMP", "")
+		
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/"&mac, "START".GetBytes("UTF8"))
 		xui.MsgboxAsync("Włączono pomiary.", "Status")
 	End If
 End Sub
@@ -464,7 +541,10 @@ Private Sub btnWylacz_Click
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	If MainScreen.mqtt.Connected Then
 		' Wysyłamy komendę STOP do NodeMCU
-		MainScreen.mqtt.Publish("lab/temperatura/sterowanie", "STOP".GetBytes("UTF8"))
+		Dim id As String  = OstatniKliknietyWykres_1.Tag
+		Dim mac As String = id.Replace("_WILG", "")
+		Dim mac As String = id.Replace("_TEMP", "")
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/"&mac, "STOP".GetBytes("UTF8"))
 		Log("Wysłano komendę STOP")
 		xui.MsgboxAsync("Zatrzymano pomiary.", "Status")
 	End If
