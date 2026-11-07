@@ -88,7 +88,7 @@ Private Sub B4XPage_Appear
 	
 	PobierzStatusyUrzadzen
 	
-	MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", "GET_DEVICES".GetBytes("UTF8")) ' Sprawdz liczbe polaczen
+	MainScreen.mqtt.Publish("lab/temperatura_wilg/zapytania/", "GET_DEVICES".GetBytes("UTF8")) ' Sprawdz liczbe polaczen
 	
 
 
@@ -234,7 +234,7 @@ Public Sub PobierzLiczbeUrzadzen
 	
 	
 	Dim cmd As String = "GET_COUNT"
-	MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmd.GetBytes("UTF8"))
+	MainScreen.mqtt.Publish("lab/temperatura_wilg/zapytania/", cmd.GetBytes("UTF8"))
 
 End Sub
 
@@ -244,7 +244,7 @@ Public Sub PobierzStatusyUrzadzen
 	Dim MainScreen As B4XMainPage = B4XPages.MainPage
 	If MainScreen.mqtt.Connected Then
 		Dim cmd() As Byte = "GET_STATUSES".GetBytes("utf8")
-		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmd)
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/zapytania/", cmd)
 		Log("B4A: Wysłano żądanie GET_STATUSES do skryptu.")
 	Else
 		Log("B4A: Brak połączenia z brokerem MQTT!")
@@ -259,7 +259,7 @@ Public Sub PobierzHistorieUrzadzenia(macAdres As String, limitPunktow As Int)
 		Dim cmd As String = "GET_HISTORY:" & macAdres & ":" & limitPunktow
 		Dim cmdBytes() As Byte = cmd.GetBytes("utf8")
         
-		MainScreen.mqtt.Publish("lab/temperatura_wilg/sterowanie/", cmdBytes)
+		MainScreen.mqtt.Publish("lab/temperatura_wilg/zapytania/", cmdBytes)
 		Log("B4A: Wysłano żądanie historii dla [" & macAdres & "], limit: " & limitPunktow)
 	Else
 		Log("B4A: Brak połączenia z brokerem MQTT!")
