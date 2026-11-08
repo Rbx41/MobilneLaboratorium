@@ -129,6 +129,8 @@ Public Sub UtworzNowyWykresTemp(mac As String, status As String)
 	SterownikWykresu.CzestRys = 1
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
+	
+
 
 	WykresyTemp.Put(mac,SterownikWykresu)
 	
@@ -163,6 +165,7 @@ Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
 	
+'	SterownikWykresu.DodajPunkt(0,0)
     
 	WykresyWilg.Put(mac,SterownikWykresu)
 	

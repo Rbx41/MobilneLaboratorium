@@ -31,6 +31,7 @@ Sub Class_Globals
 	Public CzestPodzialki As Int = 60
 	Public CzestPunkt As Int = 4
 	Public CzestRys As Int = 16
+	Private CzyPierwszyPomiar As Boolean 
 
 	
 End Sub
@@ -45,6 +46,12 @@ Public Sub Initialize (TytulWykresu_ As String ,WykresZWidoku As xChart)
 	LiczbaKrzywych = 0
 	Wykres.Title = TytulWykresu_
 	Krzywe.Initialize	
+	CzyPierwszyPomiar = True
+	
+	Wykres.AddLineMultiplePoints(0,  Array As Double(0), False)
+	Wykres.DrawChart
+'	DodajPunkt(0,0)
+	
 End Sub
 
 Public Sub WezWykres As xChart
@@ -106,8 +113,20 @@ Public Sub DodajPunkty(Czas As Double, Punkty() As Double )
 		Return
 	End If
 	
+	If CzyPierwszyPomiar Then
+		CzyPierwszyPomiar = False
+		Wykres.ClearData
+		Licznik = 0
+        
+		' OBOWIĄZKOWE: ponowne dodanie linii po ClearData!
+		For i = 0 To LiczbaKrzywych - 1
+			Dim Krzywa_ As Krzywa = Krzywe.Get(i)
+			Wykres.AddLine(Krzywa_.Etykieta, Krzywa_.Kolor)
+		Next
+	End If
+	
+
 	Licznik  = Licznik + 1
-    
 	
 	If Licznik Mod CzestPunkt= 0 Or Licznik = 1 Then
 		Dim pokazPodzialke As Boolean = (Licznik Mod CzestPodzialki = 0 Or Licznik = 1)
@@ -128,21 +147,50 @@ Public Sub DodajPunkt(Czas As Double, Wartosc As Double)
 	DodajPunkty(Czas, Array As Double(Wartosc))
 End Sub
 
+'
+'' 2. RESET I USTAWIENIA 
+'Public Sub ResetujWykres
+'	Wykres.ClearData
+'	Licznik = 0
+'	
+'
+'	For i = 0 To LiczbaKrzywych - 1
+'        Dim Krzywa_ As Krzywa = Krzywe.Get(i)
+'        Wykres.AddLine(Krzywa_.Etykieta, Krzywa_.Kolor)
+'    Next
+'
+'	CzyPierwszyPomiar = True
+'	
+'	
+'	
+'	Wykres.DrawChart
+'
+'End Sub
 
-' 2. RESET I USTAWIENIA 
+
 Public Sub ResetujWykres
 	Wykres.ClearData
 	Licznik = 0
-
-	
-	For i = 0 To LiczbaKrzywych - 1 Step 1
+    
+	' Przywracamy linie po ClearData
+	For i = 0 To LiczbaKrzywych - 1
 		Dim Krzywa_ As Krzywa = Krzywe.Get(i)
 		Wykres.AddLine(Krzywa_.Etykieta, Krzywa_.Kolor)
-
 	Next
-
+    
+	' Wstawiamy sztuczny punkt bezpośrednio do xChart (omijając DodajPunkty!),
+	' aby nie wyświetlał się błąd "ERROR: No data"
+	Dim PunktStartowy(LiczbaKrzywych) As Double
+	For i = 0 To LiczbaKrzywych - 1
+		PunktStartowy(i) = 0
+	Next
+	Wykres.AddLineMultiplePoints("0.0", PunktStartowy, True)
+    
+	' Ustawiamy flagę na True – pierwszy prawdziwy pomiar skasuje ten punktStartowy
+	CzyPierwszyPomiar = True
+    
+	Wykres.DrawChart
 End Sub
-
 
 
 
