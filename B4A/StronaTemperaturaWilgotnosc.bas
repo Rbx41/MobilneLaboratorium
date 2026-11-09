@@ -164,8 +164,7 @@ Public Sub UtworzNowyWykresWilg(mac As String, status As String)
 	SterownikWykresu.CzestRys = 1
 	SterownikWykresu.CzestPunkt = 1
 	SterownikWykresu.CzestPodzialki = 100
-	
-'	SterownikWykresu.DodajPunkt(0,0)
+
     
 	WykresyWilg.Put(mac,SterownikWykresu)
 	
@@ -204,7 +203,6 @@ Private Sub WykresSzablon_CursorTouch (Action As Int, CursorPointIndex As Int)
 
         End If
 
-        ' 2. Reset zaznaczenia poprzedniego wykresu
 		If OstatniKliknietyWykres_1.IsInitialized And OstatniKliknietyWykres_2.IsInitialized Then
 			OstatniKliknietyWykres_1.DrawOuterFrame = False
 			OstatniKliknietyWykres_1.DrawChart
@@ -213,7 +211,7 @@ Private Sub WykresSzablon_CursorTouch (Action As Int, CursorPointIndex As Int)
 			OstatniKliknietyWykres_2.DrawChart
         End If
 
-        ' 3. Zaznaczenie klikniętego wykresu
+       
         kliknietyWykres.DrawOuterFrame = True
         kliknietyWykres.DrawChart
         OstatniKliknietyWykres_1 = kliknietyWykres
@@ -272,50 +270,14 @@ End Sub
 
 
 Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
-'	Podczas odpalenia aplikacji program pobiera słownik mac : status
-'	W kolejnum kroku:
-'	Nasłuchuje na temat:
-' 	-statusów urządzeń online/ofline
-'	-danych pomiarowych konkretnych urzadzen
-'	-zarejestrowaniu nowego urzadzenia 
-
 
 	If CzyStronaZbudowana = False Then Return
     
 	Dim msg As String = BytesToString(Payload, 0, Payload.Length, "UTF8")
 
 
-	
-'	If Topic = "lab/temperatura_wilg/zarejestrowane_urzadzenia" Then
-'		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
-'		Log("=== B4A: ODEBRANO SLOWNIK STATUSOW ===")
-'		Log(jsonStr)
-'            
-'		Dim parser As JSONParser
-'		parser.Initialize(jsonStr)
-'		
-''		Dim SlownikStatusow As Map = parser.NextObject
-'		Urzadzenia = parser.NextObject
-'
-'		' Wypisujemy zawartość słownika do okna Logów
-'		For Each mac As String In Urzadzenia.Keys
-'			Dim stan As String = Urzadzenia.Get(mac)
-'			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
-'			Urzadzenia.Put(mac, stan)
-'			UtworzNowyWykresTemp(mac, stan)
-'			UtworzNowyWykresWilg(mac, stan)
-'			
-'			PobierzHistorieUrzadzenia(mac, 200)
-'		Next
-'		
-'		
-'		Return
-'	End If
-
-
 	If Topic = "lab/temperatura_wilg/zarejestrowane_urzadzenia" Then
 		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
-		Log("=== B4A: ODEBRANO SLOWNIK STATUSOW ===")
 		Log(jsonStr)
         
 		Dim parser As JSONParser
@@ -326,12 +288,10 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			Dim stan As String = Urzadzenia.Get(mac)
 			Log("-> Urządzenie: " & mac & " | Stan: " & stan)
         
-			' Twórz wykresy TYLKO jeśli jeszcze nie istnieją na liście
 			If WykresyTemp.ContainsKey(mac) = False Then
 				UtworzNowyWykresTemp(mac, stan)
 				UtworzNowyWykresWilg(mac, stan)
 			Else
-				' Jeśli już istnieją, zaktualizuj jedynie ich nagłówki
 				Dim ctrlT As ChartController = WykresyTemp.Get(mac)
 				Dim ctrlW As ChartController = WykresyWilg.Get(mac)
 				ctrlT.UstawTytul("adres urzadzenia: " & mac & " stan: " & stan)
@@ -348,11 +308,10 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 	Dim PrefiksStatus As String = "lab/temperatura_wilg/status/"
 	If Topic.StartsWith(PrefiksStatus) Then
 		Log("Informacje o statusie")
-		' Wycięcie adresu MAC z tematu MQTT
 		Dim macAdres As String = Topic.SubString(PrefiksStatus.Length).Trim
 		Dim stan As String = BytesToString(Payload, 0, Payload.Length, "utf8").Trim.ToLowerCase
         
-		' Sprawdzenie poprzedniego stanu, aby nie dublować powiadomień
+		
 		Dim poprzedniStan As String = ""
 		If Urzadzenia.IsInitialized And Urzadzenia.ContainsKey(macAdres) Then
 			poprzedniStan = Urzadzenia.Get(macAdres)
@@ -360,7 +319,7 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			Return
 		End If
         
-		' Aktualizacja stanu w lokalnej pamięci telefonu
+	
 		If Urzadzenia.IsInitialized = False Then Urzadzenia.Initialize
 		Urzadzenia.Put(macAdres, stan)
         
@@ -373,8 +332,6 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			Log("Wykresy zainicjowane !!!! Może wywalić błąd !!!!!!!!!!!")
 		End If
 		
-		Log(macAdres)
-		Log(stan)
 		
 		WykresTemp.UstawTytul("adres urzadzenia: "&macAdres&" stan: "&stan)
 		WykresWilg.UstawTytul("adres urzadzenia: "&macAdres&" stan: "&stan)
@@ -385,34 +342,25 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		
 		' Wyświetlenie odpowiedniego powiadomienia na telefonie
 		If stan = "online" Then
-			Log(">>> POWIADOMIENIE: Urządzenie [" & macAdres & "] połączyło się z siecią!")
-			ToastMessageShow("Węzeł [" & macAdres & "] jest ONLINE", False)
+			Log("Urządzenie [" & macAdres & "] połączyło się z siecią!")
+			ToastMessageShow("Urzadzenie [" & macAdres & "] jest ONLINE", False)
             
 		Else If stan = "offline" Then
-			Log(">>> POWIADOMIENIE: Urządzenie [" & macAdres & "] rozłączone (LWT)!")
+			Log("Urządzenie [" & macAdres & "] rozłączone (LWT)!")
 			' Dłuższy komunikat Toast dla zdarzenia awaryjnego/rozłączenia
-			ToastMessageShow("UWAGA: Stacja [" & macAdres & "] przeszła w tryb OFFLINE!", True)
+			ToastMessageShow("Urzadzenie [" & macAdres & "] przeszła w tryb OFFLINE!", True)
 		End If
         
 		Return
 	End If
 
-	' =========================================================================
-	' 3. CYKLICZNE POMIARY TELEMETRYCZNE Z KONKRETNEGO URZĄDZENIA
-	' =========================================================================
+
+
 	Dim PrefiksPomiary As String = "lab/temperatura_wilg/pomiary/"
 	If Topic.StartsWith(PrefiksPomiary) Then
 		Dim macAdres As String = Topic.SubString(PrefiksPomiary.Length).Trim
 		Dim daneStr As String = BytesToString(Payload, 0, Payload.Length, "utf8").Trim
         
-		' Jeśli pomiar przyszedł od urządzenia, które figurowało jako offline, automatycznie oznacz je jako online
-'		If Urzadzenia.IsInitialized Then
-'			If Urzadzenia.GetDefault(macAdres, "offline") <> "online" Then
-'				Urzadzenia.Put(macAdres, "online")
-'			End If
-'		End If
-'        
-'		Log("B4A Pomiar -> [" & macAdres & "]: " & daneStr)
 
 		Dim wartosci() As String = Regex.Split(",", daneStr)
 		If wartosci.Length >= 3 Then
@@ -433,11 +381,6 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 			ctrlTemp.DodajPunkt(czas_s, temp)	
 			ctrlWilg.DodajPunkt(czas_s, wilg)
 		End If
-		Return
-        
-		' Tutaj dopisujemy dane do wykresu xChart:
-		' np. PrzekazPomiarDoWykresu(macAdres, daneStr)
-		Return
 	End If
 	
 	
@@ -447,8 +390,7 @@ Public Sub OdbierzDaneZSieci (Topic As String, Payload() As Byte)
 		Dim jsonStr As String = BytesToString(Payload, 0, Payload.Length, "utf8")
         
 		Log("=== B4A: ODEBRANO HISTORIĘ DLA URZĄDZENIA [" & macAdres & "] ===")
-'		UtworzNowyWykresTemp(macAdres)
-'		UtworzNowyWykresWilg(macAdres)
+
 		
         
 		Dim parser As JSONParser
